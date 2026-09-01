@@ -1,0 +1,913 @@
+openapi: 3.0.3
+info:
+  title: SLIIT AF — EcoMart API
+  description: |
+    REST API for the EcoMart e-commerce project (products, cart, orders, payments, reviews, admin).
+    Use **Authorize** and paste `Bearer <token>` or only the JWT from login/register.
+  version: 1.0.0
+  contact:
+    name: SLIIT AF Project
+
+servers:
+  - url: http://localhost:5000
+    description: Local development
+  - url: https://sliit-af-backend.onrender.com
+    description: Production (Render)
+
+tags:
+  - name: System
+  - name: Auth
+  - name: Admin
+  - name: Products
+  - name: Cart
+  - name: Orders
+  - name: AdminOrders
+  - name: Payments
+  - name: Reviews
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT from POST /api/auth/login or /api/auth/register
+
+  schemas:
+    ErrorMessage:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        status:
+          type: string
+          example: error
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, seller, customer]
+          description: Optional; enforces role-specific login pages
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [seller, customer]
+        phone:
+          type: string
+        address:
+          type: object
+          properties:
+            street: { type: string }
+            city: { type: string }
+            state: { type: string }
+            zipCode: { type: string }
+            country: { type: string }
+    CreateOrderRequest:
+      type: object
+      required: [items, shippingAddress, phone]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+        shippingAddress:
+          type: string
+        phone:
+          type: string
+        notes:
+          type: string
+        shippingLat:
+          type: number
+        shippingLng:
+          type: number
+    CartAddRequest:
+      type: object
+      properties:
+        productId:
+          type: string
+        quantity:
+          type: integer
+    CartUpdateRequest:
+      type: object
+      properties:
+        itemId:
+          type: string
+        quantity:
+          type: integer
+    PaymentCardRequest:
+      type: object
+      required: [orderId]
+      properties:
+        orderId:
+          type: string
+        cardNumber:
+          type: string
+        cardholderName:
+          type: string
+        expiryMonth:
+          type: string
+        expiryYear:
+          type: string
+        cvv:
+          type: string
+    PaymentCODRequest:
+      type: object
+      required: [orderId]
+      properties:
+        orderId:
+          type: string
+    UpdateOrderStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, processing, shipped, delivered, cancelled]
+    ReviewBody:
+      type: object
+      properties:
+        productId:
+          type: string
+        orderId:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+
+paths:
+  /:
+    get:
+      tags: [System]
+      summary: API root
+      responses:
+        '200':
+          description: Service info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  version: { type: string }
+
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  message: { type: string }
+                  timestamp: { type: string }
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Success — includes JWT in data.token
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+
+  /api/auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+        '401':
+          description: Unauthorized
+    put:
+      tags: [Auth]
+      summary: Update profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                address: { type: object }
+                profileImage: { type: string }
+                themePreference:
+                  type: string
+                  enum: [light, dark, green]
+                paymentCard:
+                  type: object
+      responses:
+        '200':
+          description: Updated
+
+  /api/auth/password:
+    put:
+      tags: [Auth]
+      summary: Change password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        '200':
+          description: Password changed
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: User statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Stats
+        '403':
+          description: Admin only
+
+  /api/admin/analytics:
+    get:
+      tags: [Admin]
+      summary: Dashboard analytics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Analytics data
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User list
+
+  /api/admin/users/{id}:
+    get:
+      tags: [Admin]
+      summary: Get user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User
+    put:
+      tags: [Admin]
+      summary: Update user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Admin]
+      summary: Delete user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+
+  /api/admin/users/{id}/toggle-status:
+    patch:
+      tags: [Admin]
+      summary: Toggle user active status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  /api/admin/customers/stats:
+    get:
+      tags: [Admin]
+      summary: Customer statistics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Stats
+
+  /api/admin/customers:
+    get:
+      tags: [Admin]
+      summary: List customers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Customers
+
+  /api/admin/customers/{id}/summary:
+    get:
+      tags: [Admin]
+      summary: Customer summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Summary
+
+  /api/products:
+    get:
+      tags: [Products]
+      summary: List products (filters via query — see controller)
+      responses:
+        '200':
+          description: Product list
+    post:
+      tags: [Products]
+      summary: Create product (multipart)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                title: { type: string }
+                price: { type: number }
+                description: { type: string }
+                stock: { type: integer }
+                productCategory: { type: string }
+                certification: { type: string }
+      responses:
+        '201':
+          description: Created
+
+  /api/products/{id}:
+    get:
+      tags: [Products]
+      summary: Get product by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product
+    put:
+      tags: [Products]
+      summary: Update product
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Products]
+      summary: Delete product
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+
+  /api/products/category/{category}:
+    get:
+      tags: [Products]
+      summary: Products by category
+      parameters:
+        - in: path
+          name: category
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List
+
+  /api/products/certification/{certification}:
+    get:
+      tags: [Products]
+      summary: Products by certification
+      parameters:
+        - in: path
+          name: certification
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List
+
+  /api/products/{id}/reviews:
+    post:
+      tags: [Products]
+      summary: Add review (legacy product route)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Created
+
+  /api/cart:
+    get:
+      tags: [Cart]
+      summary: Get current user cart
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cart
+    put:
+      tags: [Cart]
+      summary: Update cart item quantity
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartUpdateRequest'
+      responses:
+        '200':
+          description: Updated
+
+  /api/cart/add:
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartAddRequest'
+      responses:
+        '200':
+          description: Cart updated
+
+  /api/cart/item/{itemId}:
+    delete:
+      tags: [Cart]
+      summary: Remove cart line
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: itemId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  /api/orders:
+    post:
+      tags: [Orders]
+      summary: Create order from cart
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+
+  /api/orders/my-orders:
+    get:
+      tags: [Orders]
+      summary: My orders
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Order array
+
+  /api/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Order by ID (owner)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order
+
+  /api/orders/{id}/cancel:
+    patch:
+      tags: [Orders]
+      summary: Cancel order (if allowed)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cancelled
+
+  /api/admin/orders:
+    get:
+      tags: [AdminOrders]
+      summary: All orders (paginated — query params per implementation)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Paginated orders
+
+  /api/admin/orders/{id}:
+    get:
+      tags: [AdminOrders]
+      summary: Order detail (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Order
+
+  /api/admin/orders/{id}/status:
+    patch:
+      tags: [AdminOrders]
+      summary: Update order status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          description: Updated
+
+  /api/payments/process-card:
+    post:
+      tags: [Payments]
+      summary: Process card payment
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCardRequest'
+      responses:
+        '200':
+          description: Payment result
+
+  /api/payments/process-cod:
+    post:
+      tags: [Payments]
+      summary: Confirm cash on delivery
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCODRequest'
+      responses:
+        '200':
+          description: OK
+
+  /api/payments/order/{orderId}:
+    get:
+      tags: [Payments]
+      summary: Payment by order ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment
+
+  /api/payments/{paymentId}:
+    get:
+      tags: [Payments]
+      summary: Payment by payment ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: paymentId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment
+
+  /api/payments/{paymentId}/refund:
+    post:
+      tags: [Payments]
+      summary: Refund payment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: paymentId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Refund result
+
+  /api/senara/reviews:
+    get:
+      tags: [Reviews]
+      summary: All reviews (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List
+    post:
+      tags: [Reviews]
+      summary: Create review (customer)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewBody'
+      responses:
+        '201':
+          description: Created
+
+  /api/senara/reviews/my-reviews:
+    get:
+      tags: [Reviews]
+      summary: My reviews
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List
+
+  /api/senara/reviews/check/{productId}:
+    get:
+      tags: [Reviews]
+      summary: Check if user can review product
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+
+  /api/senara/reviews/product/{productId}:
+    get:
+      tags: [Reviews]
+      summary: Reviews for product
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List
+
+  /api/senara/reviews/admin/{id}:
+    delete:
+      tags: [Reviews]
+      summary: Admin delete review
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+
+  /api/senara/reviews/{id}:
+    get:
+      tags: [Reviews]
+      summary: Get review
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Review
+    patch:
+      tags: [Reviews]
+      summary: Update review (customer)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewBody'
+      responses:
+        '200':
+          description: Updated
+    delete:
+      tags: [Reviews]
+      summary: Delete review
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted

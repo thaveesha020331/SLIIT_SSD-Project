@@ -1,0 +1,36 @@
+# Artillery: login + protected profile (JWT).
+#
+# Requires a real customer account on the target API:
+#   PowerShell:
+#     $env:LOAD_TEST_EMAIL="you@example.com"; $env:LOAD_TEST_PASSWORD="yourpassword"; npm run load-test:auth
+#   bash:
+#     LOAD_TEST_EMAIL=you@example.com LOAD_TEST_PASSWORD=yourpassword npm run load-test:auth
+#
+# Override base URL:
+#   npx artillery run load-tests/authenticated.yml --target https://your-api.example.com
+#
+config:
+  target: "http://127.0.0.1:5000"
+  phases:
+    - duration: 60
+      arrivalRate: 3
+      name: auth-flow
+      maxVusers: 15
+  http:
+    timeout: 45
+
+scenarios:
+  - name: Login then GET profile
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ $env.LOAD_TEST_EMAIL }}"
+            password: "{{ $env.LOAD_TEST_PASSWORD }}"
+          capture:
+            - json: $.data.token
+              as: token
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ token }}"

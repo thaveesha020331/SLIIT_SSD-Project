@@ -1,0 +1,27 @@
+# Artillery: public endpoints (no auth). EcoMart backend.
+#
+# Usage (API must be running):
+#   npm run load-test
+# Another host:
+#   npx artillery run load-tests/public-api.yml --target https://sliit-af-backend.onrender.com
+#
+config:
+  target: "http://127.0.0.1:5000"
+  phases:
+    - duration: 20
+      arrivalRate: 2
+      name: warm-up
+    - duration: 60
+      arrivalRate: 10
+      name: steady
+      maxVusers: 40
+  http:
+    timeout: 45
+
+scenarios:
+  - name: Health and product catalog
+    flow:
+      - get:
+          url: "/health"
+      - get:
+          url: "/api/products"

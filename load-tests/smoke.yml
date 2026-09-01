@@ -1,0 +1,20 @@
+# Short Artillery run (~10s) for quick checks / CI smoke.
+#   npm run load-test:smoke
+#   npx artillery run load-tests/smoke.yml -t https://your-api.example.com
+#
+config:
+  target: "http://127.0.0.1:5000"
+  phases:
+    - duration: 10
+      arrivalRate: 3
+      name: smoke
+  http:
+    timeout: 45
+
+scenarios:
+  - name: Health and product catalog
+    flow:
+      - get:
+          url: "/health"
+      - get:
+          url: "/api/products"

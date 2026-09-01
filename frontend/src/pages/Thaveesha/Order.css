@@ -1,0 +1,376 @@
+/* Order, MyOrders, OrderDetail, MapAddressPicker styles – Thaveesha */
+
+/* ── Shared page shell ────────────────────────────────────────── */
+.order-page-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  background: #f8faf8;
+  min-height: calc(100vh - 64px);
+}
+
+@media (min-width: 640px) {
+  .order-page-container { padding: 32px 24px; }
+}
+
+@media (min-width: 1024px) {
+  .order-page-container { padding: 40px 32px; }
+}
+
+.order-page-header {
+  text-align: center;
+  margin-bottom: 32px;
+  padding: 32px 20px;
+  background: linear-gradient(135deg, #bef264 50%, #84cc16 100%);
+  border-radius: 16px;
+  color: #1f2937;
+}
+
+.order-page-header h1 {
+  margin: 0 0 8px 0;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.order-page-header p {
+  margin: 0;
+  font-size: 15px;
+  opacity: 0.9;
+}
+
+/* ── My Orders list ───────────────────────────────────────────── */
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.order-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  border-left: 4px solid #84cc16;
+  transition: box-shadow 0.2s;
+}
+
+.order-card:hover {
+  box-shadow: 0 6px 20px rgba(132, 204, 22, 0.12);
+}
+
+.order-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.order-id   { font-weight: 700; color: #1f2937; font-size: 15px; }
+.order-date { font-size: 13px;  color: #6b7280; }
+
+.order-status {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.order-status.pending    { background: #78350f; color: #fffbeb; box-shadow: 0 1px 0 rgba(120, 53, 15, 0.4); }
+.order-status.processing { background: #1e293b; color: #f8fafc; box-shadow: 0 1px 0 rgba(15, 23, 42, 0.5); }
+.order-status.shipped    { background: #312e81; color: #eef2ff; box-shadow: 0 1px 0 rgba(49, 46, 129, 0.45); }
+.order-status.delivered  { background: #064e3b; color: #ecfdf5; box-shadow: 0 1px 0 rgba(6, 78, 59, 0.45); }
+.order-status.cancelled  { background: #7f1d1d; color: #fef2f2; box-shadow: 0 1px 0 rgba(127, 29, 29, 0.45); }
+
+.order-total         { font-weight: 700; color: #65a30d; font-size: 16px; margin-bottom: 12px; }
+.order-items-preview { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
+
+.order-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* ── Order tracking ───────────────────────────────────────────── */
+.order-tracking {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.order-tracking h4 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #374151;
+}
+
+.tracking-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.tracking-step           { display: flex; align-items: center; gap: 6px; }
+.tracking-step.done      { color: #166534; font-weight: 600; }
+.tracking-step.current   { color: #65a30d; font-weight: 600; }
+.tracking-step.pending   { color: #9ca3af; }
+
+/* ── Cart items used in OrderDetail / MyOrders ────────────────── */
+.cart-list {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+}
+
+.cart-item {
+  display: flex;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+}
+
+.cart-item:last-child { border-bottom: none; }
+
+.cart-item-image {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.cart-item-details { flex: 1; min-width: 0; }
+
+.cart-item-title {
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 4px 0;
+  font-size: 14px;
+}
+
+.cart-item-price {
+  color: #65a30d;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.cart-item-remove {
+  padding: 5px 11px;
+  border: none;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cart-item-remove:hover { background: #fecaca; }
+
+/* ── Feedback / utility ───────────────────────────────────────── */
+.orders-empty {
+  text-align: center;
+  padding: 48px 20px;
+  background: white;
+  border-radius: 14px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.orders-loading {
+  text-align: center;
+  padding: 32px;
+  color: #6b7280;
+}
+
+.order-error {
+  text-align: center;
+  padding: 20px 24px;
+  color: #991b1b;
+  background: #fee2e2;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.btn-try-again {
+  padding: 6px 14px;
+  border: 1px solid #991b1b;
+  background: transparent;
+  color: #991b1b;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-try-again:hover { background: #fecaca; }
+
+.success-message {
+  padding: 14px 18px;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.success-message a { color: #15803d; font-weight: 600; text-decoration: none; }
+.success-message a:hover { text-decoration: underline; }
+
+.btn-primary-link {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 20px;
+  background: #84cc16;
+  color: #1f2937;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-primary-link:hover { background: #65a30d; color: white; }
+
+.btn-small { padding: 6px 14px; font-size: 13px; }
+
+/* ── Order detail card ────────────────────────────────────────── */
+.order-detail-card {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  border-left: 4px solid #84cc16;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.order-detail-items {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.order-detail-items h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #374151;
+}
+
+.order-detail-link { color: #1f2937; font-weight: 700; text-decoration: none; }
+.order-detail-link:hover { color: #84cc16; text-decoration: underline; }
+
+/* ── Map address picker ───────────────────────────────────────── */
+.map-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.map-picker-box {
+  background: white;
+  border-radius: 14px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.map-picker-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  position: relative;
+}
+
+.map-picker-header h3 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  color: #1f2937;
+}
+
+.map-picker-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.map-picker-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 8px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #374151;
+}
+
+.map-picker-close:hover { background: #e5e7eb; }
+
+.map-picker-body {
+  padding: 16px;
+  position: relative;
+}
+
+.map-picker-loading {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #84cc16;
+  color: #1f2937;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 1001;
+}
+
+/* ── Order tracking map ───────────────────────────────────────── */
+.order-tracking-map {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.order-tracking-map h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #374151;
+}
+
+.order-tracking-map-loading {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}

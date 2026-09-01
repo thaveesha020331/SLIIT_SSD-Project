@@ -1,0 +1,43 @@
+{
+  "name": "sliit-af-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "SLIIT Academic Framework Backend",
+  "main": "Server.js",
+  "scripts": {
+    "start": "node Server.js",
+    "dev": "nodemon Server.js",
+    "seed-admin": "node scripts/Tudakshana/seedAdmin.js",
+    "create-admin": "node scripts/createAdminUser.js",
+    "create-test-users": "node scripts/createAdminUser.js --all",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:lakna": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/Lakna --forceExit",
+    "test:thaveesha": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/Thaveesha/*.test.js --forceExit",
+    "test:senara": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/Senara/review.test.js --forceExit",
+    "test:tudakshana": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/Tudakshana --forceExit",
+    "load-test": "artillery run load-tests/public-api.yml",
+    "load-test:smoke": "artillery run load-tests/smoke.yml",
+    "load-test:auth": "artillery run load-tests/authenticated.yml",
+    "load-test:report": "artillery run load-tests/public-api.yml --output load-tests/report.json",
+    "load-test:report:html": "artillery report load-tests/report.json"
+  },
+  "dependencies": {
+    "axios": "^1.13.5",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^5.2.1",
+    "js-yaml": "^4.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.0",
+    "multer": "^2.0.2",
+    "stripe": "^22.0.1",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "artillery": "^2.0.30",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^6.3.4"
+  }
+}
