@@ -53,21 +53,30 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.resolve('uploads')));
 
 // OpenAPI / Swagger UI
-try {
-  const openApiSpec = loadOpenApiSpec();
-  app.get('/api-docs.json', (req, res) => {
-    res.json(openApiSpec);
-  });
-  app.use(
-    '/api-docs',
-    swaggerServe,
-    swaggerSetup(openApiSpec, {
-      customSiteTitle: 'EcoMart API — Swagger',
-      customCss: '.swagger-ui .topbar { display: none }',
-    })
-  );
-} catch (err) {
-  console.warn('Swagger UI not mounted:', err.message);
+// Security: Swagger documentation is disabled unless explicitly enabled.
+if (process.env.ENABLE_API_DOCS === 'true') {
+  try {
+    const openApiSpec = loadOpenApiSpec();
+
+    app.get('/api-docs.json', (req, res) => {
+      res.json(openApiSpec);
+    });
+
+    app.use(
+      '/api-docs',
+      swaggerServe,
+      swaggerSetup(openApiSpec, {
+        customSiteTitle: 'EcoMart API — Swagger',
+        customCss: '.swagger-ui .topbar { display: none }',
+      })
+    );
+
+    console.log('✓ Swagger API documentation enabled');
+  } catch (err) {
+    console.warn('Swagger UI not mounted:', err.message);
+  }
+} else {
+  console.log('✓ Swagger API documentation disabled');
 }
 
 // API Routes
