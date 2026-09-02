@@ -135,8 +135,8 @@ const UserProfile = () => {
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (passwordData.newPassword.length < 12) {
+      setError('Password must be at least 12 characters long');
       return;
     }
 
@@ -462,7 +462,7 @@ const UserProfile = () => {
                   value={passwordData.newPassword}
                   onChange={handlePasswordChange}
                   required
-                  minLength="6"
+                  minLength="12"
                 />
               </div>
               <div className="form-group">
@@ -473,7 +473,7 @@ const UserProfile = () => {
                   value={passwordData.confirmPassword}
                   onChange={handlePasswordChange}
                   required
-                  minLength="6"
+                  minLength="12"
                 />
               </div>
               <div className="form-actions">

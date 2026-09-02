@@ -98,8 +98,8 @@ const SignUp = () => {
       return false;
     }
 
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
+    if (formData.password.length < 12) {
+      setError('Password must be at least 12 characters');
       return false;
     }
 
@@ -292,6 +292,7 @@ const SignUp = () => {
                 value={formData.password}
                 onChange={handleInputChange}
                 disabled={loading}
+                minLength={12}
                 autoComplete="new-password"
               />
               <button
