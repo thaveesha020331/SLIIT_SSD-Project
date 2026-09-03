@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { serve as swaggerServe, setup as swaggerSetup } from 'swagger-ui-express';
 import connectDB from './config/db.js';
@@ -17,6 +18,35 @@ import reviewRoutes from './routes/Senara/reviewRoutes.js';
 dotenv.config();
 
 const app = express();
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        fontSrc: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        upgradeInsecureRequests: null,
+      },
+    },
+    frameguard: { action: 'deny' },
+    hsts: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
+);
+
+app.use((req, res, next) => {
+  if (req.secure) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
 
 // CORS Configuration
 const normalizeOrigin = (value) => {
@@ -57,6 +87,26 @@ app.use('/uploads', express.static(path.resolve('uploads')));
 if (process.env.ENABLE_API_DOCS === 'true') {
   try {
     const openApiSpec = loadOpenApiSpec();
+
+    app.use(
+      '/api-docs',
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            baseUri: ["'self'"],
+            fontSrc: ["'self'", 'https:', 'data:'],
+            frameAncestors: ["'none'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+            objectSrc: ["'none'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+            upgradeInsecureRequests: null,
+          },
+        },
+        frameguard: { action: 'deny' },
+      })
+    );
 
     app.get('/api-docs.json', (req, res) => {
       res.json(openApiSpec);
