@@ -48,6 +48,24 @@ app.use((req, res, next) => {
   next();
 });
 
+// Prevent controller-level 5xx responses from exposing internal error details.
+app.use((req, res, next) => {
+  const json = res.json.bind(res);
+
+  res.json = (body) => {
+    if (res.statusCode >= 500) {
+      return json({
+        status: 'error',
+        message: 'Internal server error',
+      });
+    }
+
+    return json(body);
+  };
+
+  next();
+});
+
 // CORS Configuration
 const normalizeOrigin = (value) => {
   if (!value || typeof value !== 'string') return null;
@@ -166,10 +184,11 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
+  console.error('Unhandled application error:', err);
+  const statusCode = err.status && err.status >= 400 && err.status < 500 ? err.status : 500;
+  res.status(statusCode).json({
     status: 'error',
-    message: err.message || 'Internal server error',
+    message: statusCode === 500 ? 'Internal server error' : 'Bad request',
   });
 });
 

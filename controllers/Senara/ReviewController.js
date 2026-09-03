@@ -1,6 +1,7 @@
 import Review from "../../models/Senara/Review.js";
 import Product from "../../models/Lakna/Product.js";
 import Order from "../../models/Thaveesha/Order.js";
+import mongoose from "mongoose";
 import axios from "axios";
 import dotenv from "dotenv";
 dotenv.config();
@@ -105,6 +106,14 @@ export const getMyReviews = async (req, res) => {
 export const getProductReviews = async (req, res) => {
   try {
     const { productId } = req.params;
+
+    if (!mongoose.isValidObjectId(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
     const reviews = await Review.find({ product: productId })
       .populate("user", "name")
       .sort({ createdAt: -1 })
