@@ -606,9 +606,8 @@ export const getPaymentByOrderId = async (req, res) => {
 export const refundPayment = async (req, res) => {
   try {
     const { paymentId } = req.params;
-    const userId = req.user.id;
 
-    const payment = await Payment.findOne({ _id: paymentId, user: userId });
+    const payment = await Payment.findById(paymentId);
     if (!payment) {
       return res.status(404).json({
         success: false,
