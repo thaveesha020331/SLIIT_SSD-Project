@@ -11,7 +11,7 @@ import {
   getByCertification,
   addReview,
 } from '../../controllers/Lakna/productController.js';
-import { protect } from '../../utils/Tudakshana/authMiddleware.js';
+import { protect, restrictTo } from '../../utils/Tudakshana/authMiddleware.js';
 
 // Multer: store product images under uploads/products (max 5MB, image MIME types only)
 const storage = multer.diskStorage({
@@ -43,27 +43,27 @@ const upload = multer({
 const router = express.Router();
 
 /**
- * Product CRUD — OWASP A01 Broken Access Control (partial fix)
+ * Product CRUD — OWASP A01 Broken Access Control
  *
  * Before: POST/PUT/DELETE /api/products were public (auth middleware commented out).
- * Stage 1 (this change): `protect` requires a valid JWT; unauthenticated calls → 401.
- * Stage 2 (next): restrict mutating routes to admin/seller with restrictTo / isAdmin.
+ * `protect` requires a valid JWT; unauthenticated calls return 401.
+ * `restrictTo('admin')` rejects authenticated non-admin users with 403.
  *
  * ZAP check: unauthenticated Requester POST/PUT/DELETE should now return 401, not 2xx.
  */
 
-// Create product — JWT required (admin/seller role lock in stage 2)
-router.post('/', protect, upload.single('image'), createProduct);
+// Create product — admin only
+router.post('/', protect, restrictTo('admin'), upload.single('image'), createProduct);
 
 // Catalogue reads stay public
 router.get('/', getAllProducts);
 router.get('/:id', getProductById);
 
-// Update product — JWT required (admin/seller role lock in stage 2)
-router.put('/:id', protect, upload.single('image'), updateProduct);
+// Update product — admin only
+router.put('/:id', protect, restrictTo('admin'), upload.single('image'), updateProduct);
 
-// Delete product — JWT required (admin/seller role lock in stage 2)
-router.delete('/:id', protect, deleteProduct);
+// Delete product — admin only
+router.delete('/:id', protect, restrictTo('admin'), deleteProduct);
 
 /**
  * Category Routes
