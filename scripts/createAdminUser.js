@@ -11,6 +11,11 @@ dotenv.config();
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
 
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error("❌ SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required.");
+  process.exit(1);
+}
+
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://localhost:27017/sliit_af_db";
 
@@ -50,8 +55,8 @@ const createAdminUser = async () => {
     console.log("✅ Admin user created successfully!");
     console.log("");
     console.log("Login credentials:");
-    console.log("   Email: admin@test.com");
-    console.log("   Password: admin123");
+    console.log(`   Email: ${ADMIN_EMAIL}`);
+    console.log("   Password: loaded from environment variables");
     console.log("");
     console.log("You can now login at: http://localhost:5173/admin/login");
 
@@ -107,7 +112,6 @@ const createAllTestUsers = async () => {
 
     console.log("\n📋 Test User Credentials:");
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("Admin:");
     console.log("Admin:");
     console.log(`  Email: ${ADMIN_EMAIL}`);
     console.log("  Password: loaded from environment variables");
