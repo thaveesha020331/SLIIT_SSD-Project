@@ -5,6 +5,13 @@ import router from '../../routes/Lakna/productRoutes.js';
 const hasRoute = (method, routePath) =>
   router.stack.some((layer) => layer.route?.path === routePath && layer.route.methods?.[method]);
 
+const getRouteHandlers = (method, routePath) => {
+  const layer = router.stack.find(
+    (candidate) => candidate.route?.path === routePath && candidate.route.methods?.[method],
+  );
+  return layer?.route?.stack.map((handlerLayer) => handlerLayer.handle) || [];
+};
+
 describe('Lakna Product Routes', () => {
   test('should register all core CRUD routes', () => {
     expect(hasRoute('post', '/')).toBe(true);
@@ -18,6 +25,61 @@ describe('Lakna Product Routes', () => {
     expect(hasRoute('get', '/category/:category')).toBe(true);
     expect(hasRoute('get', '/certification/:certification')).toBe(true);
     expect(hasRoute('post', '/:id/reviews')).toBe(true);
+  });
+
+  test.each([
+    ['post', '/'],
+    ['put', '/:id'],
+    ['delete', '/:id'],
+  ])('should return 401 for unauthenticated %s %s', async (method, routePath) => {
+    const handlers = getRouteHandlers(method, routePath);
+    const req = { method: method.toUpperCase(), headers: {} };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    const next = jest.fn();
+
+    await handlers[0](req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['post', '/'],
+    ['put', '/:id'],
+    ['delete', '/:id'],
+  ])('should protect %s %s with authentication and admin authorization', (method, routePath) => {
+    const handlers = getRouteHandlers(method, routePath);
+
+    expect(handlers[0].name).toBe('protect');
+    expect(handlers.length).toBeGreaterThanOrEqual(3);
+
+    const req = { user: { role: 'customer' } };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    const next = jest.fn();
+
+    handlers[1](req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['post', '/'],
+    ['put', '/:id'],
+    ['delete', '/:id'],
+  ])('should allow an admin through authorization for %s %s', (method, routePath) => {
+    const handlers = getRouteHandlers(method, routePath);
+    const next = jest.fn();
+
+    handlers[1]({ user: { role: 'admin' } }, {}, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
   });
 
   test('should handle multer errors with 400 response', () => {
