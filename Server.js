@@ -69,7 +69,19 @@ app.use((req, res, next) => {
 // CORS Configuration
 const normalizeOrigin = (value) => {
   if (!value || typeof value !== 'string') return null;
-  return value.trim().replace(/\/$/, '');
+
+  try {
+    const parsedOrigin = new URL(value.trim());
+
+    if (!['http:', 'https:'].includes(parsedOrigin.protocol)) return null;
+    if (parsedOrigin.username || parsedOrigin.password || parsedOrigin.pathname !== '/' || parsedOrigin.search || parsedOrigin.hash) {
+      return null;
+    }
+
+    return parsedOrigin.origin;
+  } catch {
+    return null;
+  }
 };
 
 const allowedOrigins = [
@@ -79,13 +91,24 @@ const allowedOrigins = [
   normalizeOrigin(process.env.FRONTEND_URL),
 ].filter(Boolean);
 
+const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(normalizeOrigin(origin));
+
+app.use((req, res, next) => {
+  const requestOrigin = req.get('Origin');
+
+  if (!isAllowedOrigin(requestOrigin)) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'Origin not allowed',
+    });
+  }
+
+  return next();
+});
+
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
-      return callback(null, true);
-    }
-
-    return callback(new Error('Not allowed by CORS'));
+    return callback(null, isAllowedOrigin(origin));
   },
   credentials: true,
   optionsSuccessStatus: 200,
