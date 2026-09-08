@@ -51,21 +51,27 @@ export const createProduct = async (req, res) => {
       manufacturerInfo = { name: '', location: '' };
     }
 
-    // Create product object
-    const productData = {
-      ...req.body,
-      manufacturerInfo,
-      image: imageUrl,
-      imagePath: req.file ? req.file.path : null,
-      ecoImpactScore: {
-        carbonFootprint: ecoImpactScore.carbonFootprint,
-        sustainabilityRating: ecoImpactScore.sustainabilityRating,
-        waterUsage: ecoImpactScore.waterUsage,
-        recyclabilityScore: ecoImpactScore.recyclabilityScore,
-      },
-      // protect middleware sets req.user.id (JWT subject), not _id
-      createdBy: req.user?.id,
-    };
+    // Create product object using only explicitly allowed fields
+const productData = {
+  title: req.body.title,
+  description: req.body.description,
+  price: req.body.price,
+  stock: req.body.stock,
+  category: req.body.category,
+  productCategory: req.body.productCategory,
+  ecocertification: req.body.ecocertification,
+  manufacturerInfo,
+  image: imageUrl,
+  imagePath: req.file ? req.file.path : null,
+  ecoImpactScore: {
+    carbonFootprint: ecoImpactScore.carbonFootprint,
+    sustainabilityRating: ecoImpactScore.sustainabilityRating,
+    waterUsage: ecoImpactScore.waterUsage,
+    recyclabilityScore: ecoImpactScore.recyclabilityScore,
+  },
+  // protect middleware sets req.user.id (JWT subject), not _id
+  createdBy: req.user?.id,
+};
 
     if (!productData.createdBy) {
       delete productData.createdBy;
