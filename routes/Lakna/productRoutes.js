@@ -83,9 +83,8 @@ router.get('/certification/:certification', getByCertification);
  * Review Routes
  */
 
-// Add review to product (Authenticated users)
-// router.post('/:id/reviews', auth, addReview);
-router.post('/:id/reviews', addReview);
+// Add review to product — authenticated customers only
+router.post('/:id/reviews', protect, restrictTo('customer'), addReview);
 
 // Multer/file upload error handler for product routes
 router.use((err, req, res, next) => {
