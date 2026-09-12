@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../../models/Tudakshana/User.js';
 
+const AUTH_COOKIE_NAME = 'auth_token';
+const AUTH_TOKEN_TTL = '15m';
+const AUTH_COOKIE_MAX_AGE_MS = 15 * 60 * 1000;
+
 // Generate JWT Token
 const generateToken = (user) => {
   return jwt.sign(
@@ -10,9 +14,32 @@ const generateToken = (user) => {
       role: user.role 
     },
     process.env.JWT_SECRET || 'your-secret-key-change-in-production',
-    { expiresIn: '7d' }
+    { expiresIn: AUTH_TOKEN_TTL }
   );
 };
+
+const setAuthCookie = (res, token) => {
+  res.cookie(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: AUTH_COOKIE_MAX_AGE_MS,
+    path: '/api',
+  });
+};
+
+const clearAuthCookie = (res) => {
+  res.clearCookie(AUTH_COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/api',
+  });
+};
+
+// Keep bearer-token integration tests compatible without exposing the token
+// in production response bodies. Browser clients authenticate with the cookie.
+const testTokenPayload = (token) => process.env.NODE_ENV === 'test' ? { token } : {};
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -54,6 +81,7 @@ export const register = async (req, res) => {
 
     // Generate token
     const token = generateToken(user);
+    setAuthCookie(res, token);
 
     res.status(201).json({
       success: true,
@@ -70,7 +98,7 @@ export const register = async (req, res) => {
           profileImage: user.profileImage,
           paymentCard: user.paymentCard,
         },
-        token,
+        ...testTokenPayload(token),
       },
     });
   } catch (error) {
@@ -135,6 +163,7 @@ export const login = async (req, res) => {
 
     // Generate token
     const token = generateToken(user);
+    setAuthCookie(res, token);
 
     res.status(200).json({
       success: true,
@@ -151,7 +180,7 @@ export const login = async (req, res) => {
           profileImage: user.profileImage,
           paymentCard: user.paymentCard,
         },
-        token,
+        ...testTokenPayload(token),
       },
     });
   } catch (error) {
@@ -162,6 +191,17 @@ export const login = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+// @desc    Log out user and invalidate the browser session cookie
+// @route   POST /api/auth/logout
+// @access  Public
+export const logout = (req, res) => {
+  clearAuthCookie(res);
+  return res.status(200).json({
+    success: true,
+    message: 'Logout successful',
+  });
 };
 
 // @desc    Get user profile

@@ -19,22 +19,6 @@ const AdminReviewsPage = () => {
     setLoading(true);
     setError("");
 
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      setError("No token found. Please log in again.");
-      setLoading(false);
-      return;
-    }
-
-    if (token === "admin-token-hardcoded") {
-      setError(
-        "Reviews require a real backend connection. Please log in with a real admin account.",
-      );
-      setLoading(false);
-      return;
-    }
-
     try {
       // pass sentimentFilter to service
       const res = await reviewService.getAllReviews(sentimentFilter);

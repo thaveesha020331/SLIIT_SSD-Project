@@ -77,8 +77,7 @@ const SellerLogin = () => {
       );
 
       if (response.success) {
-        // Save auth data
-        authHelpers.saveAuth(response.data.token, response.data.user);
+        authHelpers.saveAuth(response.data.user);
         
         setSuccess('Seller login successful! Redirecting...');
         

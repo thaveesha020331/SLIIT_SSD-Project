@@ -115,7 +115,7 @@ const UserProfile = () => {
       const response = await authAPI.updateProfile(payload);
       setUser(response.data.user);
       const cachedUser = authHelpers.getUser() || {};
-      localStorage.setItem('user', JSON.stringify({ ...cachedUser, ...response.data.user }));
+      authHelpers.saveAuth({ ...cachedUser, ...response.data.user });
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
       localStorage.setItem('userTheme', response.data.user.themePreference || 'light');

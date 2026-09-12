@@ -6,31 +6,15 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
+  withCredentials: true,
 });
-
-// Add a request interceptor to include auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Add a response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear auth data but don't redirect
-      // Let each page handle the redirect appropriately
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('user');
     }
     return Promise.reject(error);
   }
@@ -70,38 +54,37 @@ export const authAPI = {
     const response = await api.put('/auth/password', passwordData);
     return response.data;
   },
+
+  logout: async () => {
+    const response = await api.post('/auth/logout');
+    return response.data;
+  },
 };
 
-// Helper functions for local storage
+// The JWT lives only in an HttpOnly cookie. JavaScript stores non-sensitive
+// display data for the current tab, never the token itself.
 export const authHelpers = {
-  // Save authentication data
-  saveAuth: (token, user) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+  saveAuth: (user) => {
+    sessionStorage.setItem('user', JSON.stringify(user));
   },
 
-  // Get authentication data
   getAuth: () => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
-    return { token, user };
+    return { user };
   },
 
-  // Clear authentication data
   clearAuth: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    void api.post('/auth/logout').catch(() => {});
   },
 
-  // Check if user is authenticated
   isAuthenticated: () => {
-    return !!localStorage.getItem('token');
+    return !!sessionStorage.getItem('user');
   },
 
-  // Get current user
   getUser: () => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) return null;
     try {
       return JSON.parse(userStr);
@@ -110,9 +93,8 @@ export const authHelpers = {
     }
   },
 
-  // Get user role
   getUserRole: () => {
-    const userStr = localStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user');
     if (!userStr) return null;
     try {
       const user = JSON.parse(userStr);

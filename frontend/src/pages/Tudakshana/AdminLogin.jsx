@@ -79,13 +79,11 @@ const AdminLogin = () => {
       console.log('Login response:', response); // Debug log
 
       if (response.success) {
-        const token = response?.data?.token || response?.token;
         const user = response?.data?.user || response?.user;
 
-        console.log('Token:', token); // Debug log
         console.log('User:', user); // Debug log
 
-        if (!token || !user) {
+        if (!user) {
           setError('Login response is invalid. Please try again.');
           setLoading(false);
           return;
@@ -97,8 +95,7 @@ const AdminLogin = () => {
           return;
         }
 
-        // Save auth data
-        authHelpers.saveAuth(token, user);
+        authHelpers.saveAuth(user);
         setSuccess('Admin login successful! Redirecting...');
 
         // Redirect to admin dashboard
