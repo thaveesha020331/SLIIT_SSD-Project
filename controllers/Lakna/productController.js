@@ -159,6 +159,24 @@ export const getAllProducts = async (req, res) => {
       });
     }
 
+    const allowedSortValues = [
+      '-createdAt',
+      'createdAt',
+      'price',
+      '-price',
+      'title',
+      '-title',
+      'stock',
+      '-stock',
+    ];
+
+    if (!allowedSortValues.includes(sort)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid sort value',
+      });
+    }
+
     // Build filter object
     const filters = { isActive: true };
 
