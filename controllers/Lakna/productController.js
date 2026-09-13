@@ -137,6 +137,28 @@ export const getAllProducts = async (req, res) => {
       sort = '-createdAt',
     } = req.query;
 
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const MAX_LIMIT = 100;
+
+    if (!Number.isInteger(pageNumber) || pageNumber < 1) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Page must be a positive integer',
+      });
+    }
+
+    if (
+      !Number.isInteger(limitNumber) ||
+      limitNumber < 1 ||
+      limitNumber > MAX_LIMIT
+    ) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Limit must be between 1 and ${MAX_LIMIT}`,
+      });
+    }
+
     // Build filter object
     const filters = { isActive: true };
 
@@ -164,13 +186,13 @@ export const getAllProducts = async (req, res) => {
     }
 
     // Calculate pagination
-    const skip = (page - 1) * limit;
+    const skip = (pageNumber - 1) * limitNumber;
 
     // Execute query
     const products = await Product.find(filters)
       .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNumber);
 
     const total = await Product.countDocuments(filters);
 
@@ -180,9 +202,9 @@ export const getAllProducts = async (req, res) => {
       data: products,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit),
+        page: pageNumber,
+        limit: limitNumber,
+        pages: Math.ceil(total / limitNumber),
       },
     });
   } catch (error) {
