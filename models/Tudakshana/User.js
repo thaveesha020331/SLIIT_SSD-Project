@@ -47,6 +47,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  tokenVersion: {
+    type: Number,
+    default: 0,
+    select: false,
+  },
   profileImage: {
     type: String,
     default: '',

@@ -45,7 +45,7 @@ export const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
 
       // Check if user still exists
-      const user = await User.findById(decoded.id);
+      const user = await User.findById(decoded.id).select('+tokenVersion');
       
       if (!user) {
         return res.status(401).json({
@@ -58,6 +58,13 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({
           success: false,
           message: 'Your account has been deactivated.',
+        });
+      }
+
+      if ((decoded.tokenVersion ?? 0) !== (user.tokenVersion || 0)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session is no longer valid. Please login again.',
         });
       }
 

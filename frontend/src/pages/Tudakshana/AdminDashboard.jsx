@@ -677,14 +677,15 @@ const AdminDashboard = () => {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       });
+      authHelpers.clearAuth();
       setPasswordForm({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
       setShowPasswordForm(false);
-      setSuccess('Password changed successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess('Password changed successfully. Please sign in again.');
+      setTimeout(() => navigate('/admin/login', { replace: true }), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Error updating password');
       setTimeout(() => setError(''), 3000);
