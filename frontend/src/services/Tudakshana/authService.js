@@ -37,6 +37,11 @@ export const authAPI = {
     return response.data;
   },
 
+  googleSignIn: async (credential, role = null) => {
+    const response = await api.post('/auth/google', { credential, role });
+    return response.data;
+  },
+
   // Get user profile
   getProfile: async () => {
     const response = await api.get('/auth/profile');

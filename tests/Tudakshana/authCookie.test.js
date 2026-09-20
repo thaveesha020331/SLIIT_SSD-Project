@@ -22,9 +22,14 @@ const User = {
   findById: jest.fn(),
 };
 
-jest.unstable_mockModule('../../models/Tudakshana/User.js', () => ({ default: User }));
+const verifyIdToken = jest.fn();
 
-const { register, logout, changePassword } = await import('../../controllers/Tudakshana/authController.js');
+jest.unstable_mockModule('../../models/Tudakshana/User.js', () => ({ default: User }));
+jest.unstable_mockModule('google-auth-library', () => ({
+  OAuth2Client: jest.fn(() => ({ verifyIdToken })),
+}));
+
+const { register, googleSignIn, logout, changePassword } = await import('../../controllers/Tudakshana/authController.js');
 const { protect } = await import('../../utils/Tudakshana/authMiddleware.js');
 
 const createResponse = () => ({
@@ -36,13 +41,65 @@ const createResponse = () => ({
 
 describe('HttpOnly authentication cookie', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
+    verifyIdToken.mockReset();
     process.env.NODE_ENV = 'test';
-    User.findOne.mockResolvedValue(null);
-    User.create.mockResolvedValue(testUser);
-    User.findById.mockReturnValue({
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com';
+    User.findOne.mockReset().mockResolvedValue(null);
+    User.create.mockReset().mockResolvedValue(testUser);
+    User.findById.mockReset().mockReturnValue({
       select: jest.fn().mockResolvedValue(testUser),
     });
-    jest.clearAllMocks();
+  });
+
+  test('creates a verified Google user and issues the application cookie', async () => {
+    const googleUser = {
+      ...testUser,
+      _id: '507f1f77bcf86cd799439012',
+      googleId: 'google-subject-123',
+    };
+    verifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: googleUser.googleId,
+        email: googleUser.email,
+        email_verified: true,
+        name: googleUser.name,
+        picture: 'https://example.com/avatar.jpg',
+      }),
+    });
+    User.findOne
+      .mockReturnValueOnce({ select: jest.fn().mockResolvedValue(null) })
+      .mockResolvedValueOnce(null);
+    User.create.mockResolvedValueOnce(googleUser);
+    const req = {
+      body: { credential: 'verified-google-id-token', role: 'customer' },
+    };
+    const res = createResponse();
+
+    await googleSignIn(req, res);
+
+    expect(verifyIdToken).toHaveBeenCalledWith({
+      idToken: 'verified-google-id-token',
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    expect(User.create).toHaveBeenCalledWith(expect.objectContaining({
+      googleId: googleUser.googleId,
+      email: googleUser.email,
+      role: 'customer',
+    }));
+    expect(res.cookie).toHaveBeenCalledWith('auth_token', expect.any(String), expect.any(Object));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  test('rejects an invalid Google ID token', async () => {
+    verifyIdToken.mockRejectedValue(new Error('Invalid token'));
+    const req = { body: { credential: 'invalid-google-id-token' } };
+    const res = createResponse();
+
+    await googleSignIn(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.cookie).not.toHaveBeenCalled();
   });
 
   test('issues a 15-minute HttpOnly SameSite cookie', async () => {
