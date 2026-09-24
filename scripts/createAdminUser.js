@@ -1,22 +1,31 @@
 // Script to create a test admin user
 // Run this with: node scripts/createAdminUser.js
 
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import User from '../models/Tudakshana/User.js';
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import User from "../models/Tudakshana/User.js";
 
 // Load environment variables
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/sliit_af_db';
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
+
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error("❌ SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required.");
+  process.exit(1);
+}
+
+const MONGODB_URI =
+  process.env.MONGODB_URI || "mongodb://localhost:27017/sliit_af_db";
 
 // Connect to MongoDB
 const connectDB = async () => {
   try {
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ MongoDB Connected');
+    console.log("✅ MongoDB Connected");
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
+    console.error("❌ MongoDB connection error:", error);
     process.exit(1);
   }
 };
@@ -27,35 +36,33 @@ const createAdminUser = async () => {
     await connectDB();
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'admin@test.com' });
+    const existingAdmin = await User.findOne({ email: ADMIN_EMAIL });
     if (existingAdmin) {
-      console.log('⚠️  Admin user already exists with email: admin@test.com');
-      console.log('   Email: admin@test.com');
-      console.log('   Password: admin123');
+      console.log(`⚠️ Admin user already exists with email: ${ADMIN_EMAIL}`);
       process.exit(0);
     }
 
     // Create new admin user
     const adminUser = await User.create({
-      name: 'Admin User',
-      email: 'admin@test.com',
-      password: 'admin123', // Will be hashed by the User model
-      role: 'admin',
-      phone: '1234567890',
+      name: "Admin User",
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD, // Will be hashed by the User model
+      role: "admin",
+      phone: "1234567890",
       isActive: true,
     });
 
-    console.log('✅ Admin user created successfully!');
-    console.log('');
-    console.log('Login credentials:');
-    console.log('   Email: admin@test.com');
-    console.log('   Password: admin123');
-    console.log('');
-    console.log('You can now login at: http://localhost:5173/admin/login');
-    
+    console.log("✅ Admin user created successfully!");
+    console.log("");
+    console.log("Login credentials:");
+    console.log(`   Email: ${ADMIN_EMAIL}`);
+    console.log("   Password: loaded from environment variables");
+    console.log("");
+    console.log("You can now login at: http://localhost:5173/admin/login");
+
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error creating admin user:', error);
+    console.error("❌ Error creating admin user:", error);
     process.exit(1);
   }
 };
@@ -67,68 +74,70 @@ const createAllTestUsers = async () => {
 
     const testUsers = [
       {
-        name: 'Admin User',
-        email: 'admin@test.com',
-        password: 'admin123',
-        role: 'admin',
-        phone: '1234567890',
+        name: "Admin User",
+        email: ADMIN_EMAIL,
+        password: ADMIN_PASSWORD,
+        role: "admin",
+        phone: "1234567890",
       },
       {
-        name: 'Seller User',
-        email: 'seller@test.com',
-        password: 'seller123',
-        role: 'seller',
-        phone: '1234567891',
+        name: "Seller User",
+        email: "seller@test.com",
+        password: "seller123",
+        role: "seller",
+        phone: "1234567891",
       },
       {
-        name: 'Customer User',
-        email: 'customer@test.com',
-        password: 'customer123',
-        role: 'customer',
-        phone: '1234567892',
+        name: "Customer User",
+        email: "customer@test.com",
+        password: "customer123",
+        role: "customer",
+        phone: "1234567892",
       },
     ];
 
-    console.log('Creating test users...\n');
+    console.log("Creating test users...\n");
 
     for (const userData of testUsers) {
       const existing = await User.findOne({ email: userData.email });
       if (existing) {
-        console.log(`⚠️  ${userData.role} user already exists: ${userData.email}`);
+        console.log(
+          `⚠️  ${userData.role} user already exists: ${userData.email}`,
+        );
       } else {
         await User.create(userData);
         console.log(`✅ ${userData.role} user created: ${userData.email}`);
       }
     }
 
-    console.log('\n📋 Test User Credentials:');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('Admin:');
-    console.log('  Email: admin@test.com');
-    console.log('  Password: admin123');
-    console.log('  Login: http://localhost:5173/admin/login');
-    console.log('');
-    console.log('Seller:');
-    console.log('  Email: seller@test.com');
-    console.log('  Password: seller123');
-    console.log('  Login: http://localhost:5173/seller/login');
-    console.log('');
-    console.log('Customer:');
-    console.log('  Email: customer@test.com');
-    console.log('  Password: customer123');
-    console.log('  Login: http://localhost:5173/login');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log("\n📋 Test User Credentials:");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    console.log("Admin:");
+    console.log(`  Email: ${ADMIN_EMAIL}`);
+    console.log("  Password: loaded from environment variables");
+    console.log("  Login: http://localhost:5173/admin/login");
+    console.log("");
+    console.log("Seller:");
+    console.log("  Email: seller@test.com");
+    console.log("  Password: seller123");
+    console.log("  Login: http://localhost:5173/seller/login");
+    console.log("");
+    console.log("Customer:");
+    console.log("  Email: customer@test.com");
+    console.log("  Password: customer123");
+    console.log("  Login: http://localhost:5173/login");
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error creating test users:', error);
+    console.error("❌ Error creating test users:", error);
     process.exit(1);
   }
 };
 
 // Check command line arguments
 const args = process.argv.slice(2);
-if (args.includes('--all')) {
+if (args.includes("--all")) {
   createAllTestUsers();
 } else {
   createAdminUser();
