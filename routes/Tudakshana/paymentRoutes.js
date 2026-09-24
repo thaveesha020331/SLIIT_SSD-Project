@@ -7,7 +7,7 @@ import {
   getPaymentByOrderId,
   refundPayment,
 } from '../../controllers/Tudakshana/paymentController.js';
-import { protect } from '../../utils/Tudakshana/authMiddleware.js';
+import { protect, isAdmin } from '../../utils/Tudakshana/authMiddleware.js';
 
 const router = express.Router();
 
@@ -21,6 +21,6 @@ router.post('/process-cod', processCashOnDelivery);
 router.get('/order/:orderId', getPaymentByOrderId);
 router.get('/:paymentId', getPaymentStatus);
 
-router.post('/:paymentId/refund', refundPayment);
+router.post('/:paymentId/refund', isAdmin, refundPayment);
 
 export default router;

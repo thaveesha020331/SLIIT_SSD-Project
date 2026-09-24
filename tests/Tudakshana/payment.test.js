@@ -232,36 +232,27 @@ describe('Payment Endpoints – Tudakshana (/api/payments)', () => {
   });
 
   describe(`POST ${API_PAY}/:paymentId/refund`, () => {
-    it('(Positive) should refund a completed payment', async () => {
+    it('(Negative) should reject a customer refund request', async () => {
       const order = await createTestOrder(44);
       const cod = await auth().post(`${API_PAY}/process-cod`).send({ orderId: order._id.toString() });
       const paymentId = cod.body.payment._id;
       const res = await auth().post(`${API_PAY}/${paymentId}/refund`).send({});
-      expect(res.status).toBe(200);
-      expect(res.body.payment?.status).toBe('cancelled');
+      expect(res.status).toBe(403);
+      expect(res.body.message?.toLowerCase()).toContain('admin');
       await Payment.deleteMany({ order: order._id });
       await Order.findByIdAndDelete(order._id);
     });
 
-    it('(Negative) should return 400 when payment is not completed', async () => {
-      const order = await createTestOrder(15);
-      const pending = await Payment.create({
-        order: order._id,
-        user: testUserId,
-        amount: order.total,
-        paymentMethod: 'card',
-        status: 'pending',
-      });
-      const res = await auth().post(`${API_PAY}/${pending._id}/refund`).send({});
-      expect(res.status).toBe(400);
-      expect(res.body.message?.toLowerCase()).toContain('completed');
-      await Payment.findByIdAndDelete(pending._id);
-      await Order.findByIdAndDelete(order._id);
+    it('(Negative) should reject a customer request before checking payment status', async () => {
+      const res = await auth().post(`${API_PAY}/507f1f77bcf86cd799439011/refund`).send({});
+      expect(res.status).toBe(403);
+      expect(res.body.message?.toLowerCase()).toContain('admin');
     });
 
-    it('(Negative) should return 404 for invalid payment id', async () => {
+    it('(Negative) should reject a customer request for an invalid payment id', async () => {
       const res = await auth().post(`${API_PAY}/507f1f77bcf86cd799439088/refund`).send({});
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(403);
+      expect(res.body.message?.toLowerCase()).toContain('admin');
     });
   });
 });
