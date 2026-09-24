@@ -67,7 +67,11 @@ web_modules/
 
 # dotenv environment variable files
 .env
-.env.test
+.env.*
+!.env.example
+
+# Local editor settings
+.vscode/
 
 
 # parcel-bundler cache (https://parceljs.org/)

@@ -664,8 +664,8 @@ const AdminDashboard = () => {
       return;
     }
 
-    if (passwordForm.newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
+    if (passwordForm.newPassword.length < 12) {
+      setError('New password must be at least 12 characters');
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -947,7 +947,7 @@ const AdminDashboard = () => {
                     name="newPassword"
                     value={passwordForm.newPassword}
                     onChange={handlePasswordInputChange}
-                    minLength="6"
+                    minLength="12"
                     required
                   />
                 </div>
@@ -959,7 +959,7 @@ const AdminDashboard = () => {
                     name="confirmPassword"
                     value={passwordForm.confirmPassword}
                     onChange={handlePasswordInputChange}
-                    minLength="6"
+                    minLength="12"
                     required
                   />
                 </div>

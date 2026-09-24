@@ -345,10 +345,10 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 12) {
       return res.status(400).json({
         success: false,
-        message: 'New password must be at least 6 characters',
+        message: 'New password must be at least 12 characters',
       });
     }
 
