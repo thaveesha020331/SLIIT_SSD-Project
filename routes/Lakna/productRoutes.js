@@ -11,8 +11,9 @@ import {
   getByCertification,
   addReview,
 } from '../../controllers/Lakna/productController.js';
+import { protect } from '../../utils/Tudakshana/authMiddleware.js';
 
-// Middleware for file upload
+// Multer: store product images under uploads/products (max 5MB, image MIME types only)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/products/';
@@ -42,33 +43,27 @@ const upload = multer({
 const router = express.Router();
 
 /**
- * Middleware for authentication (assuming it exists)
- * You can replace with your actual auth middleware
+ * Product CRUD — OWASP A01 Broken Access Control (partial fix)
+ *
+ * Before: POST/PUT/DELETE /api/products were public (auth middleware commented out).
+ * Stage 1 (this change): `protect` requires a valid JWT; unauthenticated calls → 401.
+ * Stage 2 (next): restrict mutating routes to admin/seller with restrictTo / isAdmin.
+ *
+ * ZAP check: unauthenticated Requester POST/PUT/DELETE should now return 401, not 2xx.
  */
-// const auth = require('../../middleware/auth');
-// const adminAuth = require('../../middleware/adminAuth');
 
-/**
- * Product CRUD Routes
- */
+// Create product — JWT required (admin/seller role lock in stage 2)
+router.post('/', protect, upload.single('image'), createProduct);
 
-// Create a new product (Admin only)
-// router.post('/', adminAuth, upload.single('image'), createProduct);
-router.post('/', upload.single('image'), createProduct);
-
-// Get all products (Public)
+// Catalogue reads stay public
 router.get('/', getAllProducts);
-
-// Get product by ID (Public)
 router.get('/:id', getProductById);
 
-// Update product (Admin only)
-// router.put('/:id', adminAuth, upload.single('image'), updateProduct);
-router.put('/:id', upload.single('image'), updateProduct);
+// Update product — JWT required (admin/seller role lock in stage 2)
+router.put('/:id', protect, upload.single('image'), updateProduct);
 
-// Delete product (Admin only)
-// router.delete('/:id', adminAuth, deleteProduct);
-router.delete('/:id', deleteProduct);
+// Delete product — JWT required (admin/seller role lock in stage 2)
+router.delete('/:id', protect, deleteProduct);
 
 /**
  * Category Routes

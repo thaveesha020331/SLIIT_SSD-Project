@@ -63,7 +63,8 @@ export const createProduct = async (req, res) => {
         waterUsage: ecoImpactScore.waterUsage,
         recyclabilityScore: ecoImpactScore.recyclabilityScore,
       },
-      createdBy: req.user?._id,
+      // protect middleware sets req.user.id (JWT subject), not _id
+      createdBy: req.user?.id,
     };
 
     if (!productData.createdBy) {
