@@ -31,6 +31,7 @@ describe('Lakna Product Routes', () => {
     ['post', '/'],
     ['put', '/:id'],
     ['delete', '/:id'],
+    ['post', '/:id/reviews'],
   ])('should return 401 for unauthenticated %s %s', async (method, routePath) => {
     const handlers = getRouteHandlers(method, routePath);
     const req = { method: method.toUpperCase(), headers: {} };
@@ -78,6 +79,29 @@ describe('Lakna Product Routes', () => {
     const next = jest.fn();
 
     handlers[1]({ user: { role: 'admin' } }, {}, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  test('should reject non-customers from the legacy product review endpoint', () => {
+    const handlers = getRouteHandlers('post', '/:id/reviews');
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+    const next = jest.fn();
+
+    handlers[1]({ user: { role: 'admin' } }, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('should allow a customer through legacy product review authorization', () => {
+    const handlers = getRouteHandlers('post', '/:id/reviews');
+    const next = jest.fn();
+
+    handlers[1]({ user: { role: 'customer' } }, {}, next);
 
     expect(next).toHaveBeenCalledTimes(1);
   });

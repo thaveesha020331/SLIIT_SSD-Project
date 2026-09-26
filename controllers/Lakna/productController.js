@@ -486,7 +486,8 @@ export const addReview = async (req, res) => {
     }
 
     const review = {
-      userId: req.user._id,
+      // protect middleware exposes the authenticated user's ObjectId as `id`
+      userId: req.user.id,
       rating,
       comment,
     };

@@ -1,22 +1,14 @@
-import axios from 'axios';
+import api from '../Tudakshana/authService';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
-const API_URL = `${API_BASE_URL}/payments`;
-
-const getToken = () => localStorage.getItem('token');
+const API_URL = '/payments';
 
 const paymentAPI = {
   // Create Stripe checkout session
   createStripeCheckoutSession: async (orderId) => {
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `${API_URL}/stripe/create-checkout-session`,
-        { orderId },
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`,
-          },
-        }
+        { orderId }
       );
       return response.data;
     } catch (error) {
@@ -27,13 +19,7 @@ const paymentAPI = {
   // Process cash on delivery
   processCashOnDelivery: async (orderId) => {
     try {
-      const response = await axios.post(`${API_URL}/process-cod`, {
-        orderId,
-      }, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+      const response = await api.post(`${API_URL}/process-cod`, { orderId });
       return response.data;
     } catch (error) {
       throw error;
@@ -43,11 +29,7 @@ const paymentAPI = {
   // Get payment status by payment ID
   getPaymentStatus: async (paymentId) => {
     try {
-      const response = await axios.get(`${API_URL}/${paymentId}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+      const response = await api.get(`${API_URL}/${paymentId}`);
       return response.data;
     } catch (error) {
       throw error;
@@ -57,11 +39,7 @@ const paymentAPI = {
   // Get payment by order ID
   getPaymentByOrderId: async (orderId) => {
     try {
-      const response = await axios.get(`${API_URL}/order/${orderId}`, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+      const response = await api.get(`${API_URL}/order/${orderId}`);
       return response.data;
     } catch (error) {
       throw error;
@@ -71,11 +49,7 @@ const paymentAPI = {
   // Refund payment
   refundPayment: async (paymentId) => {
     try {
-      const response = await axios.post(`${API_URL}/${paymentId}/refund`, {}, {
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
-      });
+      const response = await api.post(`${API_URL}/${paymentId}/refund`, {});
       return response.data;
     } catch (error) {
       throw error;
