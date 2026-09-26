@@ -27,15 +27,19 @@ const isLocalUrl = (url) => {
 const getFrontendBaseUrl = (req) => {
   const configuredFrontendUrl = normalizeBaseUrl(process.env.FRONTEND_URL);
 
-  // In production, ignore localhost FRONTEND_URL to prevent bad Stripe redirects.
-  if (
-    configuredFrontendUrl &&
-    !(process.env.NODE_ENV === 'production' && isLocalUrl(configuredFrontendUrl))
-  ) {
+  // In production, require a configured non-localhost URL
+  if (process.env.NODE_ENV === 'production') {
+    if (!configuredFrontendUrl) {
+      throw new Error('FRONTEND_URL environment variable is required in production');
+    }
+    if (isLocalUrl(configuredFrontendUrl)) {
+      throw new Error('FRONTEND_URL cannot be localhost in production');
+    }
     return configuredFrontendUrl;
   }
 
-  return 'http://localhost:5173';
+  // In development, use configured URL or fallback to localhost
+  return configuredFrontendUrl || 'http://localhost:5173';
 };
 
 const getCurrency = () => (process.env.STRIPE_CURRENCY || 'lkr').toLowerCase();
@@ -478,7 +482,7 @@ export const processCashOnDelivery = async (req, res) => {
         {
           amount: order.total,
           paymentMethod: 'cash_on_delivery',
-          status: 'completed',
+          status: 'pending',
           transactionId,
           paymentDate: new Date(),
         },
@@ -490,7 +494,7 @@ export const processCashOnDelivery = async (req, res) => {
         user: userId,
         amount: order.total,
         paymentMethod: 'cash_on_delivery',
-        status: 'completed',
+        status: 'pending',
         transactionId,
         paymentDate: new Date(),
       });
@@ -498,7 +502,7 @@ export const processCashOnDelivery = async (req, res) => {
 
     await Order.findByIdAndUpdate(orderId, {
       payment: payment._id,
-      paymentStatus: 'completed',
+      paymentStatus: 'pending',
     });
 
     res.status(200).json({
@@ -622,6 +626,32 @@ export const refundPayment = async (req, res) => {
       });
     }
 
+    // Process actual refund through Stripe for card payments
+    if (payment.paymentMethod === 'card' && payment.paymentGateway === 'stripe' && payment.transactionId) {
+      const stripe = getStripeClient();
+      if (!stripe) {
+        return res.status(500).json({
+          success: false,
+          message: 'Stripe is not configured for refund processing',
+        });
+      }
+
+      try {
+        // Attempt to refund through Stripe
+        await stripe.refunds.create({
+          payment_intent: payment.transactionId,
+        });
+      } catch (stripeError) {
+        console.error('Stripe refund error:', stripeError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to process refund through payment provider',
+          error: stripeError.message,
+        });
+      }
+    }
+
+    // Update local state only after successful provider refund (or for COD which doesn't have provider refund)
     const updatedPayment = await Payment.findByIdAndUpdate(
       paymentId,
       { status: 'cancelled' },
