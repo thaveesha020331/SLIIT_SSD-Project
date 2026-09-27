@@ -13,6 +13,7 @@ const testUser = {
   profileImage: '',
   paymentCard: {},
   isActive: true,
+  tokenVersion: 0,
 };
 
 const User = {
@@ -23,7 +24,7 @@ const User = {
 
 jest.unstable_mockModule('../../models/Tudakshana/User.js', () => ({ default: User }));
 
-const { register, logout } = await import('../../controllers/Tudakshana/authController.js');
+const { register, logout, changePassword } = await import('../../controllers/Tudakshana/authController.js');
 const { protect } = await import('../../utils/Tudakshana/authMiddleware.js');
 
 const createResponse = () => ({
@@ -38,7 +39,9 @@ describe('HttpOnly authentication cookie', () => {
     process.env.NODE_ENV = 'test';
     User.findOne.mockResolvedValue(null);
     User.create.mockResolvedValue(testUser);
-    User.findById.mockResolvedValue(testUser);
+    User.findById.mockReturnValue({
+      select: jest.fn().mockResolvedValue(testUser),
+    });
     jest.clearAllMocks();
   });
 
@@ -89,7 +92,7 @@ describe('HttpOnly authentication cookie', () => {
 
   test('authenticates protected requests through the cookie', async () => {
     const token = jwt.sign(
-      { id: testUser._id, email: testUser.email, role: testUser.role },
+      { id: testUser._id, email: testUser.email, role: testUser.role, tokenVersion: 0 },
       process.env.JWT_SECRET || 'your-secret-key-change-in-production',
       { expiresIn: '15m' },
     );
@@ -104,6 +107,55 @@ describe('HttpOnly authentication cookie', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user.id).toBe(testUser._id);
+  });
+
+  test('rejects a JWT issued before the password changed', async () => {
+    User.findById.mockReturnValue({
+      select: jest.fn().mockResolvedValue({ ...testUser, tokenVersion: 1 }),
+    });
+    const oldToken = jwt.sign(
+      { id: testUser._id, email: testUser.email, role: testUser.role, tokenVersion: 0 },
+      process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      { expiresIn: '15m' },
+    );
+    const req = {
+      method: 'GET',
+      headers: { cookie: `auth_token=${oldToken}` },
+    };
+    const res = createResponse();
+    const next = jest.fn();
+
+    await protect(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  test('increments the token version and clears the cookie after a password change', async () => {
+    const user = {
+      ...testUser,
+      password: 'old-password-hash',
+      comparePassword: jest.fn().mockResolvedValue(true),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    User.findById.mockReturnValue({
+      select: jest.fn().mockResolvedValue(user),
+    });
+    const req = {
+      user: { id: testUser._id },
+      body: {
+        currentPassword: 'password123',
+        newPassword: 'new-password-123',
+      },
+    };
+    const res = createResponse();
+
+    await changePassword(req, res);
+
+    expect(user.tokenVersion).toBe(1);
+    expect(user.save).toHaveBeenCalledTimes(1);
+    expect(res.clearCookie).toHaveBeenCalledWith('auth_token', expect.any(Object));
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   test('logout clears the HttpOnly cookie', () => {

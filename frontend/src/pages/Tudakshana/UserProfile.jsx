@@ -145,14 +145,15 @@ const UserProfile = () => {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
-      setSuccess('Password changed successfully!');
+      authHelpers.clearAuth();
+      setSuccess('Password changed successfully. Please sign in again.');
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
       setShowPasswordForm(false);
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => navigate('/login', { replace: true }), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to change password');
     }

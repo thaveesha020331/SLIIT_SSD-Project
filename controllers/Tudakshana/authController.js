@@ -11,7 +11,8 @@ const generateToken = (user) => {
     { 
       id: user._id, 
       email: user.email, 
-      role: user.role 
+      role: user.role,
+      tokenVersion: user.tokenVersion || 0,
     },
     process.env.JWT_SECRET || 'your-secret-key-change-in-production',
     { expiresIn: AUTH_TOKEN_TTL }
@@ -127,7 +128,7 @@ export const login = async (req, res) => {
     }
 
     // Find user and include password
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +tokenVersion');
     
     if (!user) {
       return res.status(401).json({
@@ -392,7 +393,7 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.id).select('+password');
+    const user = await User.findById(req.user.id).select('+password +tokenVersion');
 
     if (!user) {
       return res.status(404).json({
@@ -412,11 +413,16 @@ export const changePassword = async (req, res) => {
 
     // Update password
     user.password = newPassword;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
+
+    // Every JWT issued before this password change now has an older version.
+    // Clear the current browser cookie and require fresh authentication.
+    clearAuthCookie(res);
 
     res.status(200).json({
       success: true,
-      message: 'Password changed successfully',
+      message: 'Password changed successfully. Please sign in again.',
     });
   } catch (error) {
     console.error('Change password error:', error);
