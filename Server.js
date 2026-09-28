@@ -18,6 +18,7 @@ import reviewRoutes from './routes/Senara/reviewRoutes.js';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', process.env.NODE_ENV === 'production' ? 1 : false);
 
 app.use(
   helmet({
@@ -37,17 +38,13 @@ app.use(
       },
     },
     frameguard: { action: 'deny' },
-    hsts: false,
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+    },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   })
 );
-
-app.use((req, res, next) => {
-  if (req.secure) {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
-  next();
-});
 
 // Prevent controller-level 5xx responses from exposing internal error details.
 app.use((req, res, next) => {
@@ -87,6 +84,9 @@ const normalizeOrigin = (value) => {
 
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'http://localhost:3000',
   'https://sliit-af-backend.vercel.app',
   normalizeOrigin(process.env.FRONTEND_URL),
