@@ -6,6 +6,7 @@ import path from 'path';
 import { serve as swaggerServe, setup as swaggerSetup } from 'swagger-ui-express';
 import connectDB from './config/db.js';
 import { loadOpenApiSpec } from './config/loadOpenApi.js';
+import { getJwtSecret } from './config/jwtConfig.js';
 import authRoutes from './routes/Tudakshana/authRoutes.js';
 import adminRoutes from './routes/Tudakshana/adminRoutes.js';
 import productRoutes from './routes/Lakna/productRoutes.js';
@@ -221,6 +222,8 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
+    // Refuse to start with missing or weak JWT configuration.
+    getJwtSecret();
     await connectDB();
     
     app.listen(PORT, () => {

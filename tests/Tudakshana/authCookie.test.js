@@ -31,6 +31,7 @@ jest.unstable_mockModule('google-auth-library', () => ({
 
 const { register, googleSignIn, logout, changePassword } = await import('../../controllers/Tudakshana/authController.js');
 const { protect } = await import('../../utils/Tudakshana/authMiddleware.js');
+const { getJwtSecret } = await import('../../config/jwtConfig.js');
 
 const createResponse = () => ({
   cookie: jest.fn(),
@@ -44,12 +45,21 @@ describe('HttpOnly authentication cookie', () => {
     jest.clearAllMocks();
     verifyIdToken.mockReset();
     process.env.NODE_ENV = 'test';
+    process.env.JWT_SECRET = 'test-only-jwt-secret-at-least-32-characters';
     process.env.GOOGLE_CLIENT_ID = 'test-client-id.apps.googleusercontent.com';
     User.findOne.mockReset().mockResolvedValue(null);
     User.create.mockReset().mockResolvedValue(testUser);
     User.findById.mockReset().mockReturnValue({
       select: jest.fn().mockResolvedValue(testUser),
     });
+  });
+
+  test('rejects missing or weak JWT secret configuration', () => {
+    delete process.env.JWT_SECRET;
+    expect(() => getJwtSecret()).toThrow('JWT_SECRET must be configured');
+
+    process.env.JWT_SECRET = 'too-short';
+    expect(() => getJwtSecret()).toThrow('JWT_SECRET must be configured');
   });
 
   test('creates a verified Google user and issues the application cookie', async () => {
@@ -150,7 +160,7 @@ describe('HttpOnly authentication cookie', () => {
   test('authenticates protected requests through the cookie', async () => {
     const token = jwt.sign(
       { id: testUser._id, email: testUser.email, role: testUser.role, tokenVersion: 0 },
-      process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      process.env.JWT_SECRET,
       { expiresIn: '15m' },
     );
     const req = {
@@ -172,7 +182,7 @@ describe('HttpOnly authentication cookie', () => {
     });
     const oldToken = jwt.sign(
       { id: testUser._id, email: testUser.email, role: testUser.role, tokenVersion: 0 },
-      process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      process.env.JWT_SECRET,
       { expiresIn: '15m' },
     );
     const req = {

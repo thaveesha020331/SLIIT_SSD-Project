@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../../models/Tudakshana/User.js';
+import { getJwtSecret } from '../../config/jwtConfig.js';
 
 const getCookie = (req, name) => {
   const cookieHeader = req.headers.cookie;
@@ -42,7 +43,7 @@ export const protect = async (req, res, next) => {
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+      const decoded = jwt.verify(token, getJwtSecret());
 
       // Check if user still exists
       const user = await User.findById(decoded.id).select('+tokenVersion');

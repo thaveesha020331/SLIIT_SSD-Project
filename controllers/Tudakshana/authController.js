@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import User from '../../models/Tudakshana/User.js';
+import { getJwtSecret } from '../../config/jwtConfig.js';
 
 const AUTH_COOKIE_NAME = 'auth_token';
 const AUTH_TOKEN_TTL = '15m';
@@ -16,7 +17,7 @@ const generateToken = (user) => {
       role: user.role,
       tokenVersion: user.tokenVersion || 0,
     },
-    process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+    getJwtSecret(),
     { expiresIn: AUTH_TOKEN_TTL }
   );
 };
