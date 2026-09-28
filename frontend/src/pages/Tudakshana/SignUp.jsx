@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SignUp.css';
 import { EcoMartLogo } from '../../components/EcoMartLogo';
+import GoogleSignInButton from '../../components/Tudakshana/GoogleSignInButton';
 import { authAPI, authHelpers } from '../../services/Tudakshana/authService';
 
 const SignUp = () => {
@@ -167,6 +168,31 @@ const SignUp = () => {
       const errorMessage = err.response?.data?.message || 'Sign up failed. Please try again.';
       setError(errorMessage);
       console.error('Sign up error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignUp = async (credential) => {
+    setError('');
+    setSuccess('');
+
+    if (!formData.agreeToTerms) {
+      setError('You must agree to the Terms and Conditions before continuing with Google.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await authAPI.googleSignIn(credential, formData.role);
+      const user = response.data.user;
+      authHelpers.saveAuth(user);
+      setSuccess('Google account created successfully! Redirecting...');
+
+      if (user.role === 'seller') navigate('/seller/dashboard', { replace: true });
+      else navigate('/products', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google Sign-Up failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -381,6 +407,13 @@ const SignUp = () => {
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
+
+        <div className="auth-divider">or sign up with</div>
+        <GoogleSignInButton
+          onCredential={handleGoogleSignUp}
+          text="signup_with"
+          disabled={loading}
+        />
 
         <div className="login-link">
           Already have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/login'); }}>Sign in</a>

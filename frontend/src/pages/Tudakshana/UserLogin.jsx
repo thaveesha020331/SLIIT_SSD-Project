@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './UserLogin.css';
 import { EcoMartLogo } from '../../components/EcoMartLogo';
+import GoogleSignInButton from '../../components/Tudakshana/GoogleSignInButton';
 import { authAPI, authHelpers } from '../../services/Tudakshana/authService';
 
 const UserLogin = () => {
@@ -104,6 +105,27 @@ const UserLogin = () => {
     return emailRegex.test(email);
   };
 
+  const handleGoogleSignIn = async (credential) => {
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      const response = await authAPI.googleSignIn(credential);
+      const user = response.data.user;
+      authHelpers.saveAuth(user);
+      setSuccess('Google Sign-In successful! Redirecting...');
+
+      if (user.role === 'admin') navigate('/admin/dashboard', { replace: true });
+      else if (user.role === 'seller') navigate('/seller/dashboard', { replace: true });
+      else navigate('/products', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google Sign-In failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="user-login-page">
       <div className="user-login-container">
@@ -199,6 +221,13 @@ const UserLogin = () => {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        <div className="auth-divider">or continue with</div>
+        <GoogleSignInButton
+          onCredential={handleGoogleSignIn}
+          text="signin_with"
+          disabled={loading}
+        />
 
         <div className="signup-link">
           Don't have an account? <a href="#" onClick={(e) => { e.preventDefault(); navigate('/signup'); }}>Sign up</a>

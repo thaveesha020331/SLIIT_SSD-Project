@@ -1,9 +1,11 @@
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import User from '../../models/Tudakshana/User.js';
 
 const AUTH_COOKIE_NAME = 'auth_token';
 const AUTH_TOKEN_TTL = '15m';
 const AUTH_COOKIE_MAX_AGE_MS = 15 * 60 * 1000;
+const googleClient = new OAuth2Client();
 
 // Generate JWT Token
 const generateToken = (user) => {
@@ -190,6 +192,101 @@ export const login = async (req, res) => {
       success: false,
       message: 'Error logging in',
       error: error.message,
+    });
+  }
+};
+
+// @desc    Sign in or create an account with a verified Google ID token
+// @route   POST /api/auth/google
+// @access  Public
+export const googleSignIn = async (req, res) => {
+  try {
+    const { credential, role } = req.body;
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+
+    if (!googleClientId) {
+      return res.status(503).json({
+        success: false,
+        message: 'Google Sign-In is not configured on the server.',
+      });
+    }
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google credential is required.',
+      });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: googleClientId,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload?.sub || !payload.email || payload.email_verified !== true) {
+      return res.status(401).json({
+        success: false,
+        message: 'Google account could not be verified.',
+      });
+    }
+
+    let user = await User.findOne({ googleId: payload.sub }).select('+googleId +tokenVersion');
+    let isNewUser = false;
+
+    if (!user) {
+      const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
+      if (existingUser) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists. Sign in with your password first.',
+        });
+      }
+
+      const requestedRole = ['customer', 'seller'].includes(role) ? role : 'customer';
+      user = await User.create({
+        name: payload.name || payload.email.split('@')[0],
+        email: payload.email,
+        googleId: payload.sub,
+        role: requestedRole,
+        profileImage: payload.picture || '',
+      });
+      isNewUser = true;
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact support.',
+      });
+    }
+
+    const token = generateToken(user);
+    setAuthCookie(res, token);
+
+    return res.status(isNewUser ? 201 : 200).json({
+      success: true,
+      message: isNewUser ? 'Google account created successfully' : 'Google sign-in successful',
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          address: user.address,
+          themePreference: user.themePreference,
+          profileImage: user.profileImage,
+          paymentCard: user.paymentCard,
+        },
+        ...testTokenPayload(token),
+      },
+    });
+  } catch (error) {
+    console.error('Google sign-in error:', error.message);
+    return res.status(401).json({
+      success: false,
+      message: 'Google Sign-In failed. Please try again.',
     });
   }
 };
