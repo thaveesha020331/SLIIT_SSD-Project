@@ -1,10 +1,12 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { serve as swaggerServe, setup as swaggerSetup } from 'swagger-ui-express';
 import connectDB from './config/db.js';
 import { loadOpenApiSpec } from './config/loadOpenApi.js';
+import { getJwtSecret } from './config/jwtConfig.js';
 import authRoutes from './routes/Tudakshana/authRoutes.js';
 import adminRoutes from './routes/Tudakshana/adminRoutes.js';
 import productRoutes from './routes/Lakna/productRoutes.js';
@@ -18,10 +20,70 @@ dotenv.config();
 
 const app = express();
 
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        fontSrc: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        upgradeInsecureRequests: null,
+      },
+    },
+    frameguard: { action: 'deny' },
+    hsts: false,
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
+);
+
+app.use((req, res, next) => {
+  if (req.secure) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
+// Prevent controller-level 5xx responses from exposing internal error details.
+app.use((req, res, next) => {
+  const json = res.json.bind(res);
+
+  res.json = (body) => {
+    if (res.statusCode >= 500) {
+      return json({
+        status: 'error',
+        message: 'Internal server error',
+      });
+    }
+
+    return json(body);
+  };
+
+  next();
+});
+
 // CORS Configuration
 const normalizeOrigin = (value) => {
   if (!value || typeof value !== 'string') return null;
-  return value.trim().replace(/\/$/, '');
+
+  try {
+    const parsedOrigin = new URL(value.trim());
+
+    if (!['http:', 'https:'].includes(parsedOrigin.protocol)) return null;
+    if (parsedOrigin.username || parsedOrigin.password || parsedOrigin.pathname !== '/' || parsedOrigin.search || parsedOrigin.hash) {
+      return null;
+    }
+
+    return parsedOrigin.origin;
+  } catch {
+    return null;
+  }
 };
 
 const allowedOrigins = [
@@ -31,13 +93,24 @@ const allowedOrigins = [
   normalizeOrigin(process.env.FRONTEND_URL),
 ].filter(Boolean);
 
+const isAllowedOrigin = (origin) => !origin || allowedOrigins.includes(normalizeOrigin(origin));
+
+app.use((req, res, next) => {
+  const requestOrigin = req.get('Origin');
+
+  if (!isAllowedOrigin(requestOrigin)) {
+    return res.status(403).json({
+      status: 'error',
+      message: 'Origin not allowed',
+    });
+  }
+
+  return next();
+});
+
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(normalizeOrigin(origin))) {
-      return callback(null, true);
-    }
-
-    return callback(new Error('Not allowed by CORS'));
+    return callback(null, isAllowedOrigin(origin));
   },
   credentials: true,
   optionsSuccessStatus: 200,
@@ -53,21 +126,50 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.resolve('uploads')));
 
 // OpenAPI / Swagger UI
-try {
-  const openApiSpec = loadOpenApiSpec();
-  app.get('/api-docs.json', (req, res) => {
-    res.json(openApiSpec);
-  });
-  app.use(
-    '/api-docs',
-    swaggerServe,
-    swaggerSetup(openApiSpec, {
-      customSiteTitle: 'EcoMart API — Swagger',
-      customCss: '.swagger-ui .topbar { display: none }',
-    })
-  );
-} catch (err) {
-  console.warn('Swagger UI not mounted:', err.message);
+// Security: Swagger documentation is disabled unless explicitly enabled.
+if (process.env.ENABLE_API_DOCS === 'true') {
+  try {
+    const openApiSpec = loadOpenApiSpec();
+
+    app.use(
+      '/api-docs',
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            baseUri: ["'self'"],
+            fontSrc: ["'self'", 'https:', 'data:'],
+            frameAncestors: ["'none'"],
+            imgSrc: ["'self'", 'data:', 'https:'],
+            objectSrc: ["'none'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+            upgradeInsecureRequests: null,
+          },
+        },
+        frameguard: { action: 'deny' },
+      })
+    );
+
+    app.get('/api-docs.json', (req, res) => {
+      res.json(openApiSpec);
+    });
+
+    app.use(
+      '/api-docs',
+      swaggerServe,
+      swaggerSetup(openApiSpec, {
+        customSiteTitle: 'EcoMart API — Swagger',
+        customCss: '.swagger-ui .topbar { display: none }',
+      })
+    );
+
+    console.log('✓ Swagger API documentation enabled');
+  } catch (err) {
+    console.warn('Swagger UI not mounted:', err.message);
+  }
+} else {
+  console.log('✓ Swagger API documentation disabled');
 }
 
 // API Routes
@@ -107,10 +209,11 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
+  console.error('Unhandled application error:', err);
+  const statusCode = err.status && err.status >= 400 && err.status < 500 ? err.status : 500;
+  res.status(statusCode).json({
     status: 'error',
-    message: err.message || 'Internal server error',
+    message: statusCode === 500 ? 'Internal server error' : 'Bad request',
   });
 });
 
@@ -119,6 +222,8 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
+    // Refuse to start with missing or weak JWT configuration.
+    getJwtSecret();
     await connectDB();
     
     app.listen(PORT, () => {

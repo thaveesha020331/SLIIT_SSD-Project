@@ -6,6 +6,7 @@ import {
   Circle, XCircle, ShoppingBag, RotateCcw, ClipboardList, ChevronRight, Leaf,
 } from 'lucide-react';
 import { orderAPI } from '../../services/Thaveesha';
+import { authHelpers } from '../../services/Tudakshana/authService';
 import CancelConfirmModal from '../../components/Thaveesha/CancelConfirmModal';
 import './Order.css';
 
@@ -60,8 +61,7 @@ export default function MyOrders() {
   const [isAuthenticated, setIsAuthenticated] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { setIsAuthenticated(false); setLoading(false); return; }
+    if (!authHelpers.isAuthenticated()) { setIsAuthenticated(false); setLoading(false); return; }
     fetchOrders();
   }, []);
 

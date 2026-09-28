@@ -17,9 +17,17 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters'],
+    required: function() {
+      return !this.googleId;
+    },
+    minlength: [12, 'Password must be at least 12 characters'],
     select: false, // Don't return password by default
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    select: false,
   },
   role: {
     type: String,
@@ -46,6 +54,11 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true,
+  },
+  tokenVersion: {
+    type: Number,
+    default: 0,
+    select: false,
   },
   profileImage: {
     type: String,
@@ -117,6 +130,7 @@ userSchema.pre('save', async function(next) {
 // Method to check if password is correct
 userSchema.methods.comparePassword = async function(candidatePassword) {
   try {
+    if (!this.password) return false;
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
     throw new Error('Password comparison failed');

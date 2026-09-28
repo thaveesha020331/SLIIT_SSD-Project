@@ -26,44 +26,20 @@ const isLocalUrl = (url) => {
 
 const getFrontendBaseUrl = (req) => {
   const configuredFrontendUrl = normalizeBaseUrl(process.env.FRONTEND_URL);
-  const requestOrigin = normalizeBaseUrl(req?.headers?.origin);
 
-  let apiHost = req?.headers?.['x-forwarded-host'] || req?.headers?.host || null;
-  if (typeof apiHost === 'string' && apiHost.includes(',')) {
-    apiHost = apiHost.split(',')[0].trim();
-  }
-
-  let configuredMatchesApiHost = false;
-  if (configuredFrontendUrl && apiHost) {
-    try {
-      const configuredHost = new URL(configuredFrontendUrl).host;
-      configuredMatchesApiHost = configuredHost === apiHost;
-    } catch {
-      configuredMatchesApiHost = false;
+  // In production, require a configured non-localhost URL
+  if (process.env.NODE_ENV === 'production') {
+    if (!configuredFrontendUrl) {
+      throw new Error('FRONTEND_URL environment variable is required in production');
     }
-  }
-
-  // In production, ignore localhost FRONTEND_URL to prevent bad Stripe redirects.
-  if (
-    configuredFrontendUrl &&
-    !(process.env.NODE_ENV === 'production' && isLocalUrl(configuredFrontendUrl)) &&
-    !configuredMatchesApiHost
-  ) {
+    if (isLocalUrl(configuredFrontendUrl)) {
+      throw new Error('FRONTEND_URL cannot be localhost in production');
+    }
     return configuredFrontendUrl;
   }
 
-  if (requestOrigin) return requestOrigin;
-
-  const referer = req?.headers?.referer;
-  if (referer) {
-    try {
-      return new URL(referer).origin;
-    } catch {
-      // ignore invalid referer URL
-    }
-  }
-
-  return 'http://localhost:5173';
+  // In development, use configured URL or fallback to localhost
+  return configuredFrontendUrl || 'http://localhost:5173';
 };
 
 const getCurrency = () => (process.env.STRIPE_CURRENCY || 'lkr').toLowerCase();
@@ -209,7 +185,7 @@ export const stripeWebhook = async (req, res) => {
     event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
   } catch (error) {
     console.error('Stripe webhook signature verification failed:', error.message);
-    return res.status(400).send(`Webhook Error: ${error.message}`);
+    return res.status(400).send('Webhook signature verification failed');
   }
 
   try {
@@ -315,167 +291,6 @@ export const stripeWebhook = async (req, res) => {
   }
 };
 
-export const processCardPayment = async (req, res) => {
-  try {
-    const { orderId, cardNumber, expiryMonth, expiryYear, cvv, cardholderName } = req.body;
-    const userId = req.user.id;
-
-    if (!orderId || !cardNumber || !expiryMonth || !expiryYear || !cvv || !cardholderName) {
-      return res.status(400).json({
-        success: false,
-        message: 'All card details are required',
-      });
-    }
-
-    if (cardNumber.replace(/\s/g, '').length < 13 || cardNumber.replace(/\s/g, '').length > 19) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid card number',
-      });
-    }
-
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1;
-    const currentYear = currentDate.getFullYear();
-
-    if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < currentMonth)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Card has expired',
-      });
-    }
-
-    if (cvv.length < 3 || cvv.length > 4 || isNaN(cvv)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid CVV',
-      });
-    }
-
-    const order = await Order.findOne({ _id: orderId, user: userId });
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found',
-      });
-    }
-
-    const existingPayment = await Payment.findOne({ order: orderId });
-    if (existingPayment && existingPayment.status === 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment already completed for this order',
-      });
-    }
-
-    const last4 = cardNumber.replace(/\s/g, '').slice(-4);
-    const cardBrand = detectCardBrand(cardNumber);
-
-    const transactionId = generateTransactionId();
-
-    const isPaymentSuccessful = Math.random() < 0.9;
-
-    let payment;
-    if (isPaymentSuccessful) {
-      if (existingPayment) {
-        payment = await Payment.findByIdAndUpdate(
-          existingPayment._id,
-          {
-            amount: order.total,
-            paymentMethod: 'card',
-            status: 'completed',
-            transactionId,
-            cardDetails: {
-              last4Digits: last4,
-              cardBrand,
-              expiryMonth: parseInt(expiryMonth, 10),
-              expiryYear: parseInt(expiryYear, 10),
-            },
-            paymentDate: new Date(),
-          },
-          { new: true }
-        );
-      } else {
-        payment = await Payment.create({
-          order: orderId,
-          user: userId,
-          amount: order.total,
-          paymentMethod: 'card',
-          status: 'completed',
-          transactionId,
-          cardDetails: {
-            last4Digits: last4,
-            cardBrand,
-            expiryMonth: parseInt(expiryMonth, 10),
-            expiryYear: parseInt(expiryYear, 10),
-          },
-          paymentDate: new Date(),
-        });
-      }
-
-      await Order.findByIdAndUpdate(orderId, {
-        payment: payment._id,
-        paymentStatus: 'completed',
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Payment processed successfully',
-        payment: {
-          _id: payment._id,
-          transactionId: payment.transactionId,
-          amount: payment.amount,
-          status: payment.status,
-          cardBrand: payment.cardDetails.cardBrand,
-          last4Digits: payment.cardDetails.last4Digits,
-        },
-      });
-    } else {
-      const failureReasons = [
-        'Insufficient funds',
-        'Card declined',
-        'Invalid card details',
-        'Transaction declined by bank',
-      ];
-      const failureReason = failureReasons[Math.floor(Math.random() * failureReasons.length)];
-
-      if (existingPayment) {
-        await Payment.findByIdAndUpdate(existingPayment._id, {
-          status: 'failed',
-          transactionId,
-          failureReason,
-        });
-      } else {
-        await Payment.create({
-          order: orderId,
-          user: userId,
-          amount: order.total,
-          paymentMethod: 'card',
-          status: 'failed',
-          transactionId,
-          failureReason,
-        });
-      }
-
-      await Order.findByIdAndUpdate(orderId, {
-        paymentStatus: 'failed',
-      });
-
-      return res.status(400).json({
-        success: false,
-        message: `Payment failed: ${failureReason}`,
-      });
-    }
-  } catch (error) {
-    console.error('Card payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error processing payment',
-      error: error.message,
-    });
-  }
-};
-
 export const processCashOnDelivery = async (req, res) => {
   try {
     const { orderId } = req.body;
@@ -506,7 +321,7 @@ export const processCashOnDelivery = async (req, res) => {
         {
           amount: order.total,
           paymentMethod: 'cash_on_delivery',
-          status: 'completed',
+          status: 'pending',
           transactionId,
           paymentDate: new Date(),
         },
@@ -518,7 +333,7 @@ export const processCashOnDelivery = async (req, res) => {
         user: userId,
         amount: order.total,
         paymentMethod: 'cash_on_delivery',
-        status: 'completed',
+        status: 'pending',
         transactionId,
         paymentDate: new Date(),
       });
@@ -526,7 +341,7 @@ export const processCashOnDelivery = async (req, res) => {
 
     await Order.findByIdAndUpdate(orderId, {
       payment: payment._id,
-      paymentStatus: 'completed',
+      paymentStatus: 'pending',
     });
 
     res.status(200).json({
@@ -634,9 +449,8 @@ export const getPaymentByOrderId = async (req, res) => {
 export const refundPayment = async (req, res) => {
   try {
     const { paymentId } = req.params;
-    const userId = req.user.id;
 
-    const payment = await Payment.findOne({ _id: paymentId, user: userId });
+    const payment = await Payment.findById(paymentId);
     if (!payment) {
       return res.status(404).json({
         success: false,
@@ -651,6 +465,32 @@ export const refundPayment = async (req, res) => {
       });
     }
 
+    // Process actual refund through Stripe for card payments
+    if (payment.paymentMethod === 'card' && payment.paymentGateway === 'stripe' && payment.transactionId) {
+      const stripe = getStripeClient();
+      if (!stripe) {
+        return res.status(500).json({
+          success: false,
+          message: 'Stripe is not configured for refund processing',
+        });
+      }
+
+      try {
+        // Attempt to refund through Stripe
+        await stripe.refunds.create({
+          payment_intent: payment.transactionId,
+        });
+      } catch (stripeError) {
+        console.error('Stripe refund error:', stripeError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to process refund through payment provider',
+          error: stripeError.message,
+        });
+      }
+    }
+
+    // Update local state only after successful provider refund (or for COD which doesn't have provider refund)
     const updatedPayment = await Payment.findByIdAndUpdate(
       paymentId,
       { status: 'cancelled' },
@@ -677,13 +517,4 @@ export const refundPayment = async (req, res) => {
       error: error.message,
     });
   }
-};
-
-const detectCardBrand = (cardNumber) => {
-  const number = cardNumber.replace(/\s/g, '');
-  if (/^4[0-9]{12}(?:[0-9]{3})?$/.test(number)) return 'Visa';
-  if (/^5[1-5][0-9]{14}$/.test(number)) return 'Mastercard';
-  if (/^3[47][0-9]{13}$/.test(number)) return 'American Express';
-  if (/^6(?:011|5[0-9]{2})[0-9]{12}$/.test(number)) return 'Discover';
-  return 'Unknown';
 };

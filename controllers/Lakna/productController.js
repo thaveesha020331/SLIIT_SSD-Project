@@ -10,6 +10,29 @@ import { uploadProductImage } from '../../services/Lakna/imageUploadService.js';
  */
 export const createProduct = async (req, res) => {
   try {
+    const allowedFields = [
+      'title',
+      'description',
+      'price',
+      'stock',
+      'category',
+      'productCategory',
+      'ecocertification',
+      'manufacturerInfo',
+      'image',
+    ];
+
+    const unexpectedFields = Object.keys(req.body).filter(
+      (field) => !allowedFields.includes(field)
+    );
+
+    if (unexpectedFields.length > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Unexpected fields: ${unexpectedFields.join(', ')}`,
+      });
+    }
+
     const validationPayload = {
       ...req.body,
       image: req.body.image || (req.file ? 'uploaded-file' : undefined),
@@ -17,6 +40,7 @@ export const createProduct = async (req, res) => {
 
     // Validate input
     const { errors, isValid } = validateProductInput(validationPayload);
+
     if (!isValid) {
       return res.status(400).json({
         status: 'error',
@@ -51,9 +75,15 @@ export const createProduct = async (req, res) => {
       manufacturerInfo = { name: '', location: '' };
     }
 
-    // Create product object
+        // Create product object using only explicitly allowed fields
     const productData = {
-      ...req.body,
+      title: req.body.title,
+      description: req.body.description,
+      price: req.body.price,
+      stock: req.body.stock,
+      category: req.body.category,
+      productCategory: req.body.productCategory,
+      ecocertification: req.body.ecocertification,
       manufacturerInfo,
       image: imageUrl,
       imagePath: req.file ? req.file.path : null,
@@ -63,7 +93,8 @@ export const createProduct = async (req, res) => {
         waterUsage: ecoImpactScore.waterUsage,
         recyclabilityScore: ecoImpactScore.recyclabilityScore,
       },
-      createdBy: req.user?._id,
+      // protect middleware sets req.user.id (JWT subject), not _id
+      createdBy: req.user?.id,
     };
 
     if (!productData.createdBy) {
@@ -106,6 +137,46 @@ export const getAllProducts = async (req, res) => {
       sort = '-createdAt',
     } = req.query;
 
+    const pageNumber = Number(page);
+    const limitNumber = Number(limit);
+    const MAX_LIMIT = 100;
+
+    if (!Number.isInteger(pageNumber) || pageNumber < 1) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Page must be a positive integer',
+      });
+    }
+
+    if (
+      !Number.isInteger(limitNumber) ||
+      limitNumber < 1 ||
+      limitNumber > MAX_LIMIT
+    ) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Limit must be between 1 and ${MAX_LIMIT}`,
+      });
+    }
+
+    const allowedSortValues = [
+      '-createdAt',
+      'createdAt',
+      'price',
+      '-price',
+      'title',
+      '-title',
+      'stock',
+      '-stock',
+    ];
+
+    if (!allowedSortValues.includes(sort)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid sort value',
+      });
+    }
+
     // Build filter object
     const filters = { isActive: true };
 
@@ -133,13 +204,13 @@ export const getAllProducts = async (req, res) => {
     }
 
     // Calculate pagination
-    const skip = (page - 1) * limit;
+    const skip = (pageNumber - 1) * limitNumber;
 
     // Execute query
     const products = await Product.find(filters)
       .sort(sort)
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(limitNumber);
 
     const total = await Product.countDocuments(filters);
 
@@ -149,9 +220,9 @@ export const getAllProducts = async (req, res) => {
       data: products,
       pagination: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit),
+        page: pageNumber,
+        limit: limitNumber,
+        pages: Math.ceil(total / limitNumber),
       },
     });
   } catch (error) {
@@ -455,7 +526,8 @@ export const addReview = async (req, res) => {
     }
 
     const review = {
-      userId: req.user._id,
+      // protect middleware exposes the authenticated user's ObjectId as `id`
+      userId: req.user.id,
       rating,
       comment,
     };

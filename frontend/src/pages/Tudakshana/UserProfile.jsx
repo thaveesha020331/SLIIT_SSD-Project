@@ -115,7 +115,7 @@ const UserProfile = () => {
       const response = await authAPI.updateProfile(payload);
       setUser(response.data.user);
       const cachedUser = authHelpers.getUser() || {};
-      localStorage.setItem('user', JSON.stringify({ ...cachedUser, ...response.data.user }));
+      authHelpers.saveAuth({ ...cachedUser, ...response.data.user });
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
       localStorage.setItem('userTheme', response.data.user.themePreference || 'light');
@@ -135,8 +135,8 @@ const UserProfile = () => {
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (passwordData.newPassword.length < 12) {
+      setError('Password must be at least 12 characters long');
       return;
     }
 
@@ -145,14 +145,15 @@ const UserProfile = () => {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
-      setSuccess('Password changed successfully!');
+      authHelpers.clearAuth();
+      setSuccess('Password changed successfully. Please sign in again.');
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
       setShowPasswordForm(false);
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => navigate('/login', { replace: true }), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to change password');
     }
@@ -462,7 +463,7 @@ const UserProfile = () => {
                   value={passwordData.newPassword}
                   onChange={handlePasswordChange}
                   required
-                  minLength="6"
+                  minLength="12"
                 />
               </div>
               <div className="form-group">
@@ -473,7 +474,7 @@ const UserProfile = () => {
                   value={passwordData.confirmPassword}
                   onChange={handlePasswordChange}
                   required
-                  minLength="6"
+                  minLength="12"
                 />
               </div>
               <div className="form-actions">

@@ -2,6 +2,8 @@ import express from 'express';
 import {
   register,
   login,
+  googleSignIn,
+  logout,
   getProfile,
   updateProfile,
   changePassword,
@@ -13,6 +15,8 @@ const router = express.Router();
 // Public routes
 router.post('/register', register);
 router.post('/login', login);
+router.post('/google', googleSignIn);
+router.post('/logout', logout);
 
 // Protected routes (require authentication)
 router.get('/profile', protect, getProfile);

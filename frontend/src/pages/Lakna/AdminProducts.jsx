@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import api from '../../services/Tudakshana/authService';
 import './AdminProducts.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -121,7 +121,7 @@ const AdminProducts = ({ mode = 'both' }) => {
       if (productCategoryFilter) url += `&productCategory=${productCategoryFilter}`;
       if (certificationFilter) url += `&ecocertification=${certificationFilter}`;
 
-      const response = await axios.get(url);
+      const response = await api.get(url);
       const productList = Array.isArray(response?.data?.data)
         ? response.data.data
         : Array.isArray(response?.data?.products)
@@ -223,9 +223,9 @@ const AdminProducts = ({ mode = 'both' }) => {
               data.append(key, formData[key]);
             }
           });
-          await axios.put(`${API_URL}/products/${editingId}`, data);
+          await api.put(`${API_URL}/products/${editingId}`, data);
         } else {
-          await axios.put(`${API_URL}/products/${editingId}`, {
+          await api.put(`${API_URL}/products/${editingId}`, {
             ...formData,
             manufacturerInfo: formData.manufacturerInfo,
             image: formData.image,
@@ -247,7 +247,7 @@ const AdminProducts = ({ mode = 'both' }) => {
             data.append(key, formData[key]);
           }
         });
-        await axios.post(`${API_URL}/products`, data);
+        await api.post(`${API_URL}/products`, data);
         showToast('Product added successfully');
       }
 
@@ -296,7 +296,7 @@ const AdminProducts = ({ mode = 'both' }) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      await axios.delete(`${API_URL}/products/${id}`);
+      await api.delete(`${API_URL}/products/${id}`);
       showToast('Product deleted successfully');
       fetchProducts();
     } catch (err) {
@@ -342,7 +342,7 @@ const AdminProducts = ({ mode = 'both' }) => {
         url += `&ecocertification=${encodeURIComponent(certificationFilter)}`;
       }
 
-      const response = await axios.get(url);
+      const response = await api.get(url);
       const pageProducts = Array.isArray(response?.data?.data)
         ? response.data.data
         : Array.isArray(response?.data?.products)

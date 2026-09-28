@@ -1,5 +1,20 @@
 import jwt from 'jsonwebtoken';
 import User from '../../models/Tudakshana/User.js';
+import { getJwtSecret } from '../../config/jwtConfig.js';
+
+const getCookie = (req, name) => {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+
+  for (const cookie of cookieHeader.split(';')) {
+    const [key, ...valueParts] = cookie.trim().split('=');
+    if (key === name) {
+      return decodeURIComponent(valueParts.join('='));
+    }
+  }
+
+  return null;
+};
 
 // Middleware to protect routes - verify JWT token
 export const protect = async (req, res, next) => {
@@ -11,7 +26,10 @@ export const protect = async (req, res, next) => {
   try {
     let token;
 
-    // Check if token exists in Authorization header
+    // Browser sessions use an HttpOnly cookie. Bearer tokens remain supported
+    // for non-browser API clients and automated security tests.
+    token = getCookie(req, 'auth_token');
+
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
@@ -25,10 +43,10 @@ export const protect = async (req, res, next) => {
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+      const decoded = jwt.verify(token, getJwtSecret());
 
       // Check if user still exists
-      const user = await User.findById(decoded.id);
+      const user = await User.findById(decoded.id).select('+tokenVersion');
       
       if (!user) {
         return res.status(401).json({
@@ -41,6 +59,13 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({
           success: false,
           message: 'Your account has been deactivated.',
+        });
+      }
+
+      if ((decoded.tokenVersion ?? 0) !== (user.tokenVersion || 0)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session is no longer valid. Please login again.',
         });
       }
 

@@ -5,6 +5,7 @@ import {
   ShoppingCart, CheckCircle2, RotateCcw,
 } from 'lucide-react';
 import reviewService from '../../services/Senara/reviewService';
+import { authHelpers } from '../../services/Tudakshana/authService';
 
 /* ── Config ──────────────────────────────────────── */
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -61,8 +62,7 @@ export default function MyReviewPage() {
   const [sortBy, setSortBy] = useState('recent');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { setIsAuthenticated(false); setLoading(false); return; }
+    if (!authHelpers.isAuthenticated()) { setIsAuthenticated(false); setLoading(false); return; }
     fetchMyReviews();
   }, []);
 

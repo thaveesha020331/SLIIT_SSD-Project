@@ -11,8 +11,9 @@ import {
   getByCertification,
   addReview,
 } from '../../controllers/Lakna/productController.js';
+import { protect, restrictTo } from '../../utils/Tudakshana/authMiddleware.js';
 
-// Middleware for file upload
+// Multer: store product images under uploads/products (max 5MB, image MIME types only)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/products/';
@@ -42,33 +43,27 @@ const upload = multer({
 const router = express.Router();
 
 /**
- * Middleware for authentication (assuming it exists)
- * You can replace with your actual auth middleware
+ * Product CRUD — OWASP A01 Broken Access Control
+ *
+ * Before: POST/PUT/DELETE /api/products were public (auth middleware commented out).
+ * `protect` requires a valid JWT; unauthenticated calls return 401.
+ * `restrictTo('admin')` rejects authenticated non-admin users with 403.
+ *
+ * ZAP check: unauthenticated Requester POST/PUT/DELETE should now return 401, not 2xx.
  */
-// const auth = require('../../middleware/auth');
-// const adminAuth = require('../../middleware/adminAuth');
 
-/**
- * Product CRUD Routes
- */
+// Create product — admin only
+router.post('/', protect, restrictTo('admin'), upload.single('image'), createProduct);
 
-// Create a new product (Admin only)
-// router.post('/', adminAuth, upload.single('image'), createProduct);
-router.post('/', upload.single('image'), createProduct);
-
-// Get all products (Public)
+// Catalogue reads stay public
 router.get('/', getAllProducts);
-
-// Get product by ID (Public)
 router.get('/:id', getProductById);
 
-// Update product (Admin only)
-// router.put('/:id', adminAuth, upload.single('image'), updateProduct);
-router.put('/:id', upload.single('image'), updateProduct);
+// Update product — admin only
+router.put('/:id', protect, restrictTo('admin'), upload.single('image'), updateProduct);
 
-// Delete product (Admin only)
-// router.delete('/:id', adminAuth, deleteProduct);
-router.delete('/:id', deleteProduct);
+// Delete product — admin only
+router.delete('/:id', protect, restrictTo('admin'), deleteProduct);
 
 /**
  * Category Routes
@@ -88,9 +83,8 @@ router.get('/certification/:certification', getByCertification);
  * Review Routes
  */
 
-// Add review to product (Authenticated users)
-// router.post('/:id/reviews', auth, addReview);
-router.post('/:id/reviews', addReview);
+// Add review to product — authenticated customers only
+router.post('/:id/reviews', protect, restrictTo('customer'), addReview);
 
 // Multer/file upload error handler for product routes
 router.use((err, req, res, next) => {

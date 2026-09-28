@@ -10,6 +10,8 @@ import { EcoMartLogo } from '../../components/EcoMartLogo';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  // Legacy demo sessions are disabled; all admin data requires a real cookie session.
+  const isDemoAdminSession = false;
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -96,9 +98,7 @@ const AdminDashboard = () => {
   const fetchDashboardAnalytics = async () => {
     try {
       setAnalyticsLoading(true);
-      const token = localStorage.getItem('token');
-
-      if (token === 'admin-token-hardcoded') {
+      if (isDemoAdminSession) {
         const mockSeries = [
           { key: '1', label: 'Mon', orders: 1, revenue: 3250, newUsers: 1 },
           { key: '2', label: 'Tue', orders: 0, revenue: 0, newUsers: 0 },
@@ -141,8 +141,7 @@ const AdminDashboard = () => {
   };
 
   const fetchProfile = async () => {
-    const token = localStorage.getItem('token');
-    if (token === 'admin-token-hardcoded') {
+    if (isDemoAdminSession) {
       const fallbackProfile = {
         name: 'Admin User',
         email: 'admin@test.com',
@@ -182,8 +181,7 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       // Check if using hardcoded admin credentials
-      const token = localStorage.getItem('token');
-      if (token === 'admin-token-hardcoded') {
+      if (isDemoAdminSession) {
         // Set mock stats for hardcoded admin
         setStats({
           total: 0,
@@ -219,8 +217,7 @@ const AdminDashboard = () => {
       setLoading(true);
       
       // Check if using hardcoded admin credentials
-      const token = localStorage.getItem('token');
-      if (token === 'admin-token-hardcoded') {
+      if (isDemoAdminSession) {
         // Set empty users list for hardcoded admin
         setUsers([]);
         setPagination({ total: 0, page: 1, pages: 0, limit: 10 });
@@ -251,8 +248,7 @@ const AdminDashboard = () => {
 
   const fetchCustomerStats = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (token === 'admin-token-hardcoded') {
+      if (isDemoAdminSession) {
         setCustomerStats({
           totalCustomers: 0,
           activeCustomers: 0,
@@ -277,9 +273,7 @@ const AdminDashboard = () => {
   const fetchCustomers = async () => {
     try {
       setCustomersLoading(true);
-      const token = localStorage.getItem('token');
-
-      if (token === 'admin-token-hardcoded') {
+      if (isDemoAdminSession) {
         setCustomers([]);
         setCustomerPagination({ total: 0, page: 1, pages: 0, limit: 10 });
         setCustomersLoading(false);
@@ -304,8 +298,7 @@ const AdminDashboard = () => {
       setSelectedCustomer(customerId);
       setCustomerSummary(null);
 
-      const token = localStorage.getItem('token');
-      if (token === 'admin-token-hardcoded') {
+      if (isDemoAdminSession) {
         setCustomerSummary({
           customer: {
             name: 'Demo Customer',
@@ -350,8 +343,7 @@ const AdminDashboard = () => {
   const downloadCustomersAsCSV = async () => {
     try {
       setCustomersLoading(true);
-      const token = localStorage.getItem('token');
-      if (token === 'admin-token-hardcoded') {
+      if (isDemoAdminSession) {
         setError('CSV export requires a backend-connected admin account.');
         setTimeout(() => setError(''), 3000);
         return;
@@ -544,8 +536,7 @@ const AdminDashboard = () => {
 
   const handleToggleStatus = async (userId) => {
     // Check if using hardcoded admin credentials
-    const token = localStorage.getItem('token');
-    if (token === 'admin-token-hardcoded') {
+    if (isDemoAdminSession) {
       setError('This feature requires a real backend connection. Please use a database-connected admin account.');
       setTimeout(() => setError(''), 3000);
       return;
@@ -564,8 +555,7 @@ const AdminDashboard = () => {
 
   const handleDeleteUser = async (userId) => {
     // Check if using hardcoded admin credentials
-    const token = localStorage.getItem('token');
-    if (token === 'admin-token-hardcoded') {
+    if (isDemoAdminSession) {
       setError('This feature requires a real backend connection. Please use a database-connected admin account.');
       setTimeout(() => setError(''), 3000);
       return;
@@ -617,8 +607,7 @@ const AdminDashboard = () => {
       return;
     }
 
-    const token = localStorage.getItem('token');
-    if (token === 'admin-token-hardcoded') {
+    if (isDemoAdminSession) {
       setProfile((prev) => ({
         ...prev,
         name: profileForm.name.trim(),
@@ -664,8 +653,8 @@ const AdminDashboard = () => {
       return;
     }
 
-    if (passwordForm.newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
+    if (passwordForm.newPassword.length < 12) {
+      setError('New password must be at least 12 characters');
       setTimeout(() => setError(''), 3000);
       return;
     }
@@ -676,8 +665,7 @@ const AdminDashboard = () => {
       return;
     }
 
-    const token = localStorage.getItem('token');
-    if (token === 'admin-token-hardcoded') {
+    if (isDemoAdminSession) {
       setSuccess('Password change is disabled for demo admin account.');
       setTimeout(() => setSuccess(''), 3000);
       return;
@@ -689,14 +677,15 @@ const AdminDashboard = () => {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       });
+      authHelpers.clearAuth();
       setPasswordForm({
         currentPassword: '',
         newPassword: '',
         confirmPassword: '',
       });
       setShowPasswordForm(false);
-      setSuccess('Password changed successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      setSuccess('Password changed successfully. Please sign in again.');
+      setTimeout(() => navigate('/admin/login', { replace: true }), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Error updating password');
       setTimeout(() => setError(''), 3000);
@@ -947,7 +936,7 @@ const AdminDashboard = () => {
                     name="newPassword"
                     value={passwordForm.newPassword}
                     onChange={handlePasswordInputChange}
-                    minLength="6"
+                    minLength="12"
                     required
                   />
                 </div>
@@ -959,7 +948,7 @@ const AdminDashboard = () => {
                     name="confirmPassword"
                     value={passwordForm.confirmPassword}
                     onChange={handlePasswordInputChange}
-                    minLength="6"
+                    minLength="12"
                     required
                   />
                 </div>

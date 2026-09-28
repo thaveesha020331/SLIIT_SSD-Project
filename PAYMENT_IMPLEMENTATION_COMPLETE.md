@@ -18,19 +18,20 @@ A fully functional payment processing system with two payment methods:
    - Indexes for performance
 
 ✅ controllers/Tudakshana/paymentController.js
-   - processCardPayment() - Validate & process card payments
+   - createStripeCheckoutSession() - Create Stripe checkout session
+   - stripeWebhook() - Handle Stripe webhook events
    - processCashOnDelivery() - Confirm COD
    - getPaymentStatus() - Get payment details
    - getPaymentByOrderId() - Get payment for order
-   - refundPayment() - Refund completed payments
-   - Helper: detectCardBrand() - Auto-detect card type
+   - refundPayment() - Refund completed payments (admin only, with actual Stripe refund)
 
 ✅ routes/Tudakshana/paymentRoutes.js
-   - POST /process-card
+   - POST /stripe/create-checkout-session
+   - POST /stripe/webhook
    - POST /process-cod
    - GET /:paymentId
    - GET /order/:orderId
-   - POST /:paymentId/refund
+   - POST /:paymentId/refund (admin only)
 
 ✅ Server.js (MODIFIED)
    - Added: import paymentRoutes
@@ -47,7 +48,7 @@ A fully functional payment processing system with two payment methods:
 ### Frontend Files Created ✅
 ```
 ✅ services/Thaveesha/paymentService.js
-   - processCardPayment() - Call card payment API
+   - createStripeCheckoutSession() - Call Stripe checkout API
    - processCashOnDelivery() - Call COD API
    - getPaymentStatus() - Get payment details
    - getPaymentByOrderId() - Get order payment
@@ -109,30 +110,31 @@ A fully functional payment processing system with two payment methods:
 
 ---
 
-## 📡 API ENDPOINTS (5 Total)
+## 📡 API ENDPOINTS (6 Total)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/payments/process-card` | Process credit card payment |
+| POST | `/api/payments/stripe/create-checkout-session` | Create Stripe checkout session |
+| POST | `/api/payments/stripe/webhook` | Handle Stripe webhook events |
 | POST | `/api/payments/process-cod` | Process cash on delivery |
 | GET | `/api/payments/:paymentId` | Get payment by ID |
 | GET | `/api/payments/order/:orderId` | Get payment by order |
-| POST | `/api/payments/:paymentId/refund` | Refund payment |
+| POST | `/api/payments/:paymentId/refund` | Refund payment (admin only) |
 
 ---
 
 ## ✨ KEY FEATURES
 
 ### Card Payment
+✅ Stripe Checkout integration (PCI-compliant, tokenized)
 ✅ Support for: Visa, Mastercard, American Express, Discover
-✅ Validation: Card number, expiry date, CVV, cardholder name
-✅ Security: Card details masked, CVV never stored
-✅ Auto-detect: Card brand from card number
-✅ Demo Mode: 90% success rate for realistic testing
+✅ Security: Card details never touch server, handled by Stripe
+✅ Webhook: Automatic payment confirmation from Stripe
+✅ Admin refunds: Actual Stripe refund API calls
 
 ### Cash on Delivery
 ✅ Simple confirmation process
-✅ 100% success rate (always confirmed)
+✅ Payment status set to 'pending' until delivery
 ✅ No sensitive data needed
 ✅ Transaction ID generated
 
@@ -172,21 +174,17 @@ Header: Authorization: Bearer <token>
 }
 ```
 
-**3. Pay with Card**
+**3. Pay with Card (Stripe Checkout)**
 ```bash
-POST http://localhost:5001/api/payments/process-card
+POST http://localhost:5001/api/payments/stripe/create-checkout-session
 Header: Authorization: Bearer <token>
 {
-  "orderId": "<orderId from step 2>",
-  "cardNumber": "4532015112830366",
-  "cardholderName": "John Doe",
-  "expiryMonth": "12",
-  "expiryYear": "2025",
-  "cvv": "123"
+  "orderId": "<orderId from step 2>"
 }
 ```
+Response will contain Stripe checkout URL. Complete payment on Stripe's hosted page.
 
-**OR Pay with COD**
+OR Pay with COD
 ```bash
 POST http://localhost:5001/api/payments/process-cod
 Header: Authorization: Bearer <token>
@@ -203,25 +201,14 @@ Header: Authorization: Bearer <token>
 
 ---
 
-## 📋 TEST CARDS
-
-| Type | Number | Expiry | CVV |
-|------|--------|--------|-----|
-| Visa | 4532015112830366 | 12/2025 | 123 |
-| Mastercard | 5425233010103010 | 12/2025 | 123 |
-| Amex | 374245455400126 | 12/2025 | 1234 |
-| Discover | 6011111111111117 | 12/2025 | 123 |
-
----
-
-## 🔐 SECURITY MEASURES
+##  SECURITY MEASURES
 
 ✅ JWT authentication required
 ✅ User ownership verification
 ✅ Input validation for all fields
-✅ Card brand detection
-✅ Card details masked (last 4 only)
-✅ CVV never stored in database
+✅ Stripe Checkout: Card details never touch server (PCI-compliant)
+✅ Admin-only refund access
+✅ Actual Stripe refund API calls
 ✅ Unique transaction IDs
 ✅ HTTPS ready (with SSL cert)
 ✅ Error messages don't leak info
@@ -294,8 +281,8 @@ paymentStatus: "pending" | "completed" | "failed"
 ## ⚠️ IMPORTANT NOTES
 
 1. **Payment files are ONLY payment-related** - No other components modified
-2. **Demo Mode**: 90% card success rate for realistic testing
-3. **No third-party integration**: Ready for Stripe/PayPal integration
+2. **Stripe Integration**: Real Stripe Checkout for PCI-compliant card payments
+3. **COD Security**: COD payments marked as 'pending' until delivery confirmation
 4. **Production Ready**: Follows best practices and security standards
 5. **Fully Integrated**: Cart → Order → Checkout → Payment flow working
 
@@ -312,12 +299,11 @@ paymentStatus: "pending" | "completed" | "failed"
 
 - [ ] Start server: `npm run dev`
 - [ ] Manual test: Create order → Select payment method
-- [ ] Postman test: Card payment success
-- [ ] Postman test: Card payment failure (expired)
+- [ ] Postman test: Stripe checkout session creation
 - [ ] Postman test: Cash on delivery
 - [ ] Postman test: Get payment status
 - [ ] Postman test: Get payment by order
-- [ ] Postman test: Refund payment
+- [ ] Postman test: Refund payment (admin)
 - [ ] Frontend test: UI responsive on mobile
 - [ ] Frontend test: Error messages display correctly
 - [ ] Frontend test: Success confirmation shows
@@ -326,12 +312,12 @@ paymentStatus: "pending" | "completed" | "failed"
 
 ## 🚀 READY FOR SUBMISSION
 
-✅ **Backend**: Complete payment API with 5 endpoints
+✅ **Backend**: Complete payment API with 6 endpoints
 ✅ **Frontend**: Beautiful checkout page with PaymentForm
 ✅ **Database**: Payment schema with proper relationships
 ✅ **Integration**: Fully integrated into cart → order flow
 ✅ **Testing**: Comprehensive Postman testing guide provided
-✅ **Security**: JWT auth, input validation, data masking
+✅ **Security**: JWT auth, Stripe Checkout, admin-only refunds
 ✅ **Documentation**: Detailed guides for testing and implementation
 
 ---
@@ -360,14 +346,12 @@ paymentStatus: "pending" | "completed" | "failed"
 
 ## 💡 FUTURE ENHANCEMENTS
 
-1. Integrate real payment gateway (Stripe, PayPal)
-2. Add payment webhooks
-3. Admin payment dashboard
-4. Payment reconciliation reports
-5. Multi-currency support
-6. Payment history per user
-7. Automated refunds
-8. Email receipts
+1. Admin payment dashboard
+2. Payment reconciliation reports
+3. Multi-currency support
+4. Payment history per user
+5. Email receipts
+6. Delivery confirmation endpoint for COD payments
 
 ---
 
